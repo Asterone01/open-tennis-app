@@ -6,15 +6,6 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-const playerSkills = [
-  { skill: 'Derecha', value: 86 },
-  { skill: 'Reves', value: 72 },
-  { skill: 'Saque', value: 79 },
-  { skill: 'Volea', value: 68 },
-  { skill: 'Fisico', value: 91 },
-  { skill: 'Mentalidad', value: 84 },
-]
-
 function PlayerCard({ profile }) {
   const fullName = profile?.fullName || 'Jugador OPEN'
   const initials = fullName
@@ -26,6 +17,13 @@ function PlayerCard({ profile }) {
     .toUpperCase()
   const level = profile?.level || 1
   const xp = profile?.xp || 0
+  const playerSkills = [
+    { skill: 'Ataque', value: profile?.stats?.stat_ataque ?? 50 },
+    { skill: 'Defensa', value: profile?.stats?.stat_defensa ?? 50 },
+    { skill: 'Saque', value: profile?.stats?.stat_saque ?? 50 },
+    { skill: 'Fisico', value: profile?.stats?.stat_fisico ?? 50 },
+    { skill: 'Mentalidad', value: profile?.stats?.stat_mentalidad ?? 50 },
+  ]
 
   return (
     <article className="relative overflow-hidden rounded-2xl border border-[#2B2B2D] bg-[#0D0D0F] p-6 text-white">

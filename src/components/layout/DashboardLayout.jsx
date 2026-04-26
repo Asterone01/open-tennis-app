@@ -1,7 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { Home, LogOut, Medal, Trophy, User } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import useActiveRole from '../../hooks/useActiveRole'
 import useTheme from '../../hooks/useTheme'
+import usePlayerProfile from '../../features/profile/usePlayerProfile'
 
 const navItems = [
   { label: 'Inicio', to: '/dashboard', icon: Home },
@@ -12,9 +14,19 @@ const navItems = [
 
 function DashboardLayout() {
   const { theme } = useTheme()
+  const { profile } = usePlayerProfile()
+  const [activeRole, setActiveRole] = useActiveRole(
+    profile.role === 'coach' ? 'coach' : 'player',
+  )
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
+  }
+
+  const handleRoleSwitch = () => {
+    const nextRole = activeRole === 'coach' ? 'player' : 'coach'
+    setActiveRole(nextRole)
+    window.location.assign('/dashboard')
   }
 
   return (
@@ -37,6 +49,15 @@ function DashboardLayout() {
           </NavLink>
 
           <div className="flex items-center gap-3">
+            {profile.isCoach ? (
+              <button
+                type="button"
+                onClick={handleRoleSwitch}
+                className="hidden h-10 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink transition hover:border-open-primary md:block"
+              >
+                ⇄ Cambiar a Vista {activeRole === 'coach' ? 'Jugador' : 'Coach'}
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={handleSignOut}

@@ -56,10 +56,20 @@ function useTheme(clubId) {
     } else if (user.user_metadata?.club_id) {
       query = query.eq('id', user.user_metadata.club_id)
     } else {
-      setTheme(DEFAULT_THEME)
-      applyTheme(DEFAULT_THEME)
-      setIsLoading(false)
-      return
+      const { data: player } = await supabase
+        .from('players')
+        .select('club_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (player?.club_id) {
+        query = query.eq('id', player.club_id)
+      } else {
+        setTheme(DEFAULT_THEME)
+        applyTheme(DEFAULT_THEME)
+        setIsLoading(false)
+        return
+      }
     }
 
     const { data: club } = await query.maybeSingle()

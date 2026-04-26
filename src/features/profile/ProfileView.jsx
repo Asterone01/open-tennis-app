@@ -1,4 +1,8 @@
+import { useState } from 'react'
 import { Award, ShieldCheck, Star, Target } from 'lucide-react'
+import { applyTheme } from '../../hooks/useTheme'
+import { supabase } from '../../lib/supabase'
+import JoinClubModal from './JoinClubModal'
 import PlayerCard from './PlayerCard'
 import usePlayerProfile from './usePlayerProfile'
 
@@ -10,10 +14,34 @@ const badges = [
 ]
 
 function ProfileView() {
-  const { profile, isLoading, error } = usePlayerProfile()
+  const [isJoinOpen, setIsJoinOpen] = useState(false)
+  const { player, profile, isLoading, error, reloadProfile } = usePlayerProfile()
+
+  const handleJoined = async (club) => {
+    await reloadProfile()
+
+    const { data } = await supabase
+      .from('clubs')
+      .select('primary_color, logo_url, name')
+      .eq('id', club.id)
+      .maybeSingle()
+
+    applyTheme({
+      primaryColor: data?.primary_color,
+      logoUrl: data?.logo_url,
+      clubName: data?.name,
+    })
+  }
 
   return (
     <section className="mx-auto grid w-full max-w-5xl gap-6">
+      <JoinClubModal
+        isOpen={isJoinOpen}
+        playerId={player?.id}
+        onClose={() => setIsJoinOpen(false)}
+        onJoined={handleJoined}
+      />
+
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-open-muted">
@@ -38,6 +66,15 @@ function ProfileView() {
           <PlayerCard profile={profile} />
           {isLoading ? (
             <p className="text-sm text-open-muted">Cargando perfil...</p>
+          ) : null}
+          {!profile.clubId ? (
+            <button
+              type="button"
+              onClick={() => setIsJoinOpen(true)}
+              className="h-12 border border-open-light bg-open-surface px-5 text-sm font-semibold text-open-ink transition hover:border-open-primary"
+            >
+              Unirme a un club
+            </button>
           ) : null}
         </div>
 

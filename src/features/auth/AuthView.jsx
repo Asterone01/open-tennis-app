@@ -1,10 +1,14 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
+import { setStoredRole } from '../../hooks/useActiveRole'
 import OnboardingWizard from './OnboardingWizard'
+
+const loginRoles = ['manager', 'coach', 'player']
 
 function AuthView() {
   const [mode, setMode] = useState('login')
+  const [selectedRole, setSelectedRole] = useState('player')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -21,6 +25,8 @@ function AuthView() {
     setError('')
     setMessage('')
     setIsSubmitting(true)
+
+    setStoredRole(selectedRole)
 
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
@@ -95,14 +101,32 @@ function AuthView() {
                 Iniciar sesión
               </h2>
               <p className="mt-2 text-sm text-open-muted">
-                Accede al panel operativo de OPEN.
+                Elige tu vista activa y accede a OPEN.
               </p>
+            </div>
+
+            <div className="grid grid-cols-3 rounded-full border border-open-border bg-open-surface p-1">
+              {loginRoles.map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setSelectedRole(role)}
+                  className={[
+                    'h-10 rounded-full text-xs font-semibold uppercase tracking-[0.08em] transition',
+                    selectedRole === role
+                      ? 'bg-open-primary text-white'
+                      : 'text-open-muted hover:text-open-ink',
+                  ].join(' ')}
+                >
+                  {role}
+                </button>
+              ))}
             </div>
 
             <div className="grid grid-cols-2 border border-open-border bg-open-surface p-1">
               <button
                 type="button"
-                className="h-10 bg-open-ink text-sm font-semibold text-white transition"
+                className="h-10 bg-open-primary text-sm font-semibold text-white transition"
               >
                 Entrar
               </button>
@@ -156,7 +180,7 @@ function AuthView() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-12 bg-open-ink px-5 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-open-muted"
+              className="h-12 bg-open-primary px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-open-muted"
             >
               {isSubmitting ? 'Entrando...' : 'Entrar'}
             </button>
