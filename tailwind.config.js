@@ -3,14 +3,19 @@ export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        display: ['Archivo Black', 'Impact', 'sans-serif'],
+      },
       colors: {
         open: {
-          bg: '#fafafa',
-          surface: '#ffffff',
-          light: '#e4e4e7',
-          border: '#e4e4e7',
-          ink: '#09090b',
-          muted: '#71717a',
+          bg: 'var(--color-open-bg)',
+          surface: 'var(--color-open-surface)',
+          light: 'var(--color-open-light)',
+          border: 'var(--color-open-border)',
+          dark: 'var(--color-brand-primary)',
+          primary: 'var(--color-brand-primary)',
+          ink: 'var(--color-brand-primary)',
+          muted: 'var(--color-open-muted)',
         },
       },
     },

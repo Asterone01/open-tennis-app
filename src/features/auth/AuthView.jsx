@@ -1,14 +1,20 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
+import OnboardingWizard from './OnboardingWizard'
 
 function AuthView() {
+  const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
+
+  if (mode === 'signup') {
+    return <OnboardingWizard onBackToLogin={() => setMode('login')} />
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -51,7 +57,7 @@ function AuthView() {
       return
     }
 
-    setMessage('Te enviamos un enlace para restablecer tu contrasena.')
+    setMessage('Te enviamos un enlace para restablecer tu contraseña.')
   }
 
   return (
@@ -82,7 +88,7 @@ function AuthView() {
 
           <form
             onSubmit={handleSubmit}
-            className="flex flex-col justify-center gap-6 bg-open-bg p-8 md:p-10"
+            className="flex flex-col justify-center gap-5 bg-open-bg p-8 md:p-10"
           >
             <div>
               <h2 className="text-2xl font-semibold text-open-ink">
@@ -91,6 +97,22 @@ function AuthView() {
               <p className="mt-2 text-sm text-open-muted">
                 Accede al panel operativo de OPEN.
               </p>
+            </div>
+
+            <div className="grid grid-cols-2 border border-open-border bg-open-surface p-1">
+              <button
+                type="button"
+                className="h-10 bg-open-ink text-sm font-semibold text-white transition"
+              >
+                Entrar
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('signup')}
+                className="h-10 text-sm font-semibold text-open-muted transition hover:text-open-ink"
+              >
+                Registrarse
+              </button>
             </div>
 
             <label className="grid gap-2 text-sm font-medium text-open-ink">
@@ -147,7 +169,7 @@ function AuthView() {
             >
               {isResetting
                 ? 'Enviando restablecimiento...'
-                : 'Olvide mi contrasena'}
+                : 'Olvidé mi contraseña'}
             </button>
           </form>
         </motion.section>

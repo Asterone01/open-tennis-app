@@ -1,15 +1,18 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { CalendarDays, Home, LogOut, Medal, Trophy, User } from 'lucide-react'
+import { Home, LogOut, Medal, Trophy, User } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import useTheme from '../../hooks/useTheme'
 
 const navItems = [
   { label: 'Inicio', to: '/dashboard', icon: Home },
   { label: 'Ranking', to: '/dashboard/ranking', icon: Medal },
   { label: 'Torneos', to: '/dashboard/torneos', icon: Trophy },
-  { label: 'Partidos', to: '/dashboard/partidos', icon: CalendarDays },
+  { label: 'Perfil', to: '/profile', icon: User },
 ]
 
 function DashboardLayout() {
+  const { theme } = useTheme()
+
   const handleSignOut = async () => {
     await supabase.auth.signOut()
   }
@@ -20,9 +23,17 @@ function DashboardLayout() {
         <div className="flex h-16 items-center justify-between px-5 md:px-8">
           <NavLink
             to="/dashboard"
-            className="text-xl font-black uppercase tracking-[0.12em] text-open-ink [font-family:'Archivo_Black',Impact,sans-serif]"
+            className="flex items-center gap-3 text-xl font-black uppercase tracking-[0.12em] text-open-ink [font-family:'Archivo_Black',Impact,sans-serif]"
           >
-            OPEN
+            {theme.logoUrl ? (
+              <img
+                src={theme.logoUrl}
+                alt={theme.clubName}
+                className="h-8 max-w-28 object-contain"
+              />
+            ) : (
+              'OPEN'
+            )}
           </NavLink>
 
           <div className="flex items-center gap-3">
@@ -34,9 +45,13 @@ function DashboardLayout() {
               <LogOut size={16} strokeWidth={1.8} />
               Salir
             </button>
-            <div className="grid h-10 w-10 place-items-center border border-open-light bg-open-bg">
+            <NavLink
+              to="/profile"
+              aria-label="Abrir perfil"
+              className="grid h-10 w-10 place-items-center border border-open-light bg-open-bg transition hover:border-open-ink"
+            >
               <User size={18} strokeWidth={1.8} />
-            </div>
+            </NavLink>
           </div>
         </div>
       </header>

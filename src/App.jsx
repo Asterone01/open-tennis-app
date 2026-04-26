@@ -3,7 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import DashboardLayout from './components/layout/DashboardLayout'
 import AuthView from './features/auth/AuthView'
 import PasswordResetView from './features/auth/PasswordResetView'
-import HomeDashboard from './features/dashboard/HomeDashboard'
+import DashboardRouter from './features/dashboard/DashboardRouter'
+import ProfileView from './features/profile/ProfileView'
 import { supabase } from './lib/supabase'
 
 function App() {
@@ -71,7 +72,8 @@ function App() {
           }
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<HomeDashboard />} />
+          <Route path="dashboard" element={<DashboardRouter session={session} />} />
+          <Route path="profile" element={<ProfileView />} />
         </Route>
         <Route
           path="*"
