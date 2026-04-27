@@ -25,6 +25,7 @@ Build OPEN as a mobile-first PWA for tennis communities with role-based experien
 - PWA base: manifest, mobile metadata, service worker registration, and OPEN app icons.
 - Competition phase: club ranking view, Face-to-Face radar comparison, and `/ranking` + `/h2h` routes.
 - Simplified auth UX: first choose Manager/Coach/Player, then log in or register in the next screen.
+- Auth category enforcement: selected login category must match account permissions; registration CTA now sits below login CTA.
 
 ## Supabase SQL Files
 

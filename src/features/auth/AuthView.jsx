@@ -46,17 +46,27 @@ function AuthView() {
     setMessage('')
     setIsSubmitting(true)
 
-    setStoredRole(selectedRole)
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
     if (signInError) {
       setError(signInError.message)
+      setIsSubmitting(false)
+      return
     }
 
+    const canEnterRole = await validateSelectedRole(data.user, selectedRole)
+
+    if (!canEnterRole) {
+      await supabase.auth.signOut()
+      setError(`Esta cuenta no tiene acceso como ${selectedRole}.`)
+      setIsSubmitting(false)
+      return
+    }
+
+    setStoredRole(selectedRole)
     setIsSubmitting(false)
   }
 
@@ -176,25 +186,8 @@ function AuthView() {
                   Iniciar sesión
                 </h2>
                 <p className="mt-2 text-sm text-open-muted">
-                  Entra o registra una cuenta para este perfil.
+                  Entra con una cuenta autorizada para este perfil.
                 </p>
-              </div>
-
-              <div className="grid grid-cols-2 border border-open-border bg-open-surface p-1">
-                <button
-                  type="button"
-                  onClick={() => setMode('login')}
-                  className="h-10 bg-black text-sm font-semibold text-white transition hover:bg-black"
-                >
-                  Entrar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode('signup')}
-                  className="h-10 text-sm font-semibold text-open-muted transition hover:text-open-ink"
-                >
-                  Registrarse
-                </button>
               </div>
 
               <label className="grid gap-2 text-sm font-medium text-open-ink">
@@ -245,6 +238,14 @@ function AuthView() {
 
               <button
                 type="button"
+                onClick={() => setMode('signup')}
+                className="h-12 border border-open-border bg-open-surface px-5 text-sm font-semibold text-open-ink transition hover:border-black"
+              >
+                Registrarse
+              </button>
+
+              <button
+                type="button"
                 onClick={handlePasswordReset}
                 disabled={isResetting}
                 className="text-left text-sm font-semibold text-open-muted transition hover:text-open-ink disabled:cursor-not-allowed"
@@ -259,6 +260,30 @@ function AuthView() {
       </div>
     </main>
   )
+}
+
+async function validateSelectedRole(user, selectedRole) {
+  const primaryRole = user?.user_metadata?.role || 'player'
+
+  if (selectedRole === 'manager') {
+    return primaryRole === 'manager'
+  }
+
+  if (selectedRole === 'coach') {
+    if (primaryRole === 'coach') {
+      return true
+    }
+
+    const { data: player } = await supabase
+      .from('players')
+      .select('is_coach')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    return Boolean(player?.is_coach)
+  }
+
+  return primaryRole === 'player' || primaryRole === 'coach'
 }
 
 export default AuthView
