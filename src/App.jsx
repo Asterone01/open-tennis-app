@@ -77,6 +77,7 @@ function App() {
           <Route path="dashboard" element={<DashboardRouter session={session} />} />
           <Route path="ranking" element={<RankingView />} />
           <Route path="h2h" element={<FaceToFaceView />} />
+          <Route path="h2h/:opponentId" element={<FaceToFaceView />} />
           <Route path="profile" element={<ProfileView />} />
         </Route>
         <Route

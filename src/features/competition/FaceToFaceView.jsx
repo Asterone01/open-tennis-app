@@ -1,4 +1,5 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   PolarAngleAxis,
@@ -8,27 +9,69 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { ArrowLeft } from 'lucide-react'
+import usePlayerProfile from '../profile/usePlayerProfile'
+import { supabase } from '../../lib/supabase'
 import { getRating } from './competitionUtils'
 
 function FaceToFaceView() {
   const navigate = useNavigate()
+  const { opponentId } = useParams()
   const { state } = useLocation()
-  const playerOne = state?.playerOne
-  const playerTwo = state?.playerTwo
+  const { player: currentPlayer, isLoading: isProfileLoading } =
+    usePlayerProfile()
+  const [playerOne, setPlayerOne] = useState(state?.playerOne || null)
+  const [playerTwo, setPlayerTwo] = useState(state?.playerTwo || null)
+  const [isLoading, setIsLoading] = useState(Boolean(opponentId))
+  const [error, setError] = useState('')
 
-  if (!playerOne || !playerTwo) {
+  useEffect(() => {
+    let isMounted = true
+
+    const loadPlayers = async () => {
+      if (!opponentId || isProfileLoading) return
+
+      const basePlayer = state?.playerOne || currentPlayer
+
+      if (!basePlayer) return
+
+      setIsLoading(true)
+      setError('')
+
+      const { data: opponent, error: opponentError } = await supabase
+        .from('players')
+        .select('*')
+        .eq('id', opponentId)
+        .maybeSingle()
+
+      if (!isMounted) return
+
+      if (opponentError || !opponent) {
+        setError(opponentError?.message || 'No se encontró el rival.')
+      } else {
+        setPlayerOne(basePlayer)
+        setPlayerTwo(opponent)
+      }
+
+      setIsLoading(false)
+    }
+
+    loadPlayers()
+
+    return () => {
+      isMounted = false
+    }
+  }, [currentPlayer, isProfileLoading, opponentId, state?.playerOne])
+
+  if (isLoading) {
+    return <p className="text-sm text-open-muted">Cargando comparación...</p>
+  }
+
+  if (error || !playerOne || !playerTwo) {
     return (
       <section className="grid gap-5">
-        <button
-          type="button"
-          onClick={() => navigate('/ranking')}
-          className="inline-flex h-10 w-fit items-center gap-2 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink"
-        >
-          <ArrowLeft size={16} strokeWidth={1.8} />
-          Volver al ranking
-        </button>
+        <BackButton onClick={() => navigate('/ranking')} />
         <p className="border border-open-light bg-open-surface px-4 py-8 text-center text-sm text-open-muted">
-          Selecciona un jugador desde el ranking para comparar.
+          {error || 'Selecciona un jugador desde el ranking para comparar.'}
         </p>
       </section>
     )
@@ -43,19 +86,12 @@ function FaceToFaceView() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
     >
-      <button
-        type="button"
-        onClick={() => navigate('/ranking')}
-        className="inline-flex h-10 w-fit items-center gap-2 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink transition hover:border-open-primary"
-      >
-        <ArrowLeft size={16} strokeWidth={1.8} />
-        Ranking
-      </button>
+      <BackButton onClick={() => navigate('/ranking')} />
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border border-open-light bg-open-surface p-5 md:p-8">
         <PlayerHeader player={playerOne} align="left" />
         <motion.div
-          className="font-display text-4xl italic text-open-primary md:text-6xl"
+          className="font-display text-3xl italic text-open-primary md:text-6xl"
           initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.18, duration: 0.42, ease: 'easeOut' }}
@@ -74,21 +110,25 @@ function FaceToFaceView() {
         <div className="h-[360px]">
           <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={chartData} outerRadius="72%">
-              <PolarGrid stroke="#0D0D0F" strokeOpacity={0.14} />
+              <PolarGrid stroke="var(--color-primary)" strokeOpacity={0.14} />
               <PolarAngleAxis
                 dataKey="skill"
-                tick={{ fill: '#71717a', fontSize: 12, fontWeight: 600 }}
+                tick={{
+                  fill: 'var(--color-muted)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
               />
               <Radar
                 dataKey="playerOne"
-                stroke="#2B2B2D"
+                stroke="var(--color-primary)"
                 strokeWidth={1.5}
-                fill="#2B2B2D"
-                fillOpacity={0.6}
+                fill="var(--color-primary)"
+                fillOpacity={0.8}
               />
               <Radar
                 dataKey="playerTwo"
-                stroke="#0D0D0F"
+                stroke="var(--color-muted)"
                 strokeWidth={2}
                 fill="transparent"
                 fillOpacity={0}
@@ -99,19 +139,32 @@ function FaceToFaceView() {
       </motion.article>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Historial H2H" value="2 - 1" detail="Datos demo" />
-        <StatCard
-          label={playerOne.full_name || 'Jugador 1'}
-          value={getRating(playerOne)}
-          detail="Rating"
+        <CompareStat label="XP" left={playerOne.xp || 0} right={playerTwo.xp || 0} />
+        <CompareStat
+          label="Nivel"
+          left={playerOne.level || 1}
+          right={playerTwo.level || 1}
         />
-        <StatCard
-          label={playerTwo.full_name || 'Jugador 2'}
-          value={getRating(playerTwo)}
-          detail="Rating"
+        <CompareStat
+          label="ELO"
+          left={getRating(playerOne)}
+          right={getRating(playerTwo)}
         />
       </div>
     </motion.section>
+  )
+}
+
+function BackButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-10 w-fit items-center gap-2 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink transition hover:border-open-primary"
+    >
+      <ArrowLeft size={16} strokeWidth={1.8} />
+      Ranking
+    </button>
   )
 }
 
@@ -140,12 +193,17 @@ function PlayerHeader({ player, align }) {
   )
 }
 
-function StatCard({ label, value, detail }) {
+function CompareStat({ label, left, right }) {
   return (
     <article className="border border-open-light bg-open-surface p-5">
       <p className="text-sm font-semibold text-open-muted">{label}</p>
-      <p className="mt-3 text-3xl font-semibold text-open-ink">{value}</p>
-      <p className="mt-1 text-sm text-open-muted">{detail}</p>
+      <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <p className="text-2xl font-semibold text-open-ink">{left}</p>
+        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-open-muted">
+          vs
+        </span>
+        <p className="text-right text-2xl font-semibold text-open-ink">{right}</p>
+      </div>
     </article>
   )
 }

@@ -63,7 +63,7 @@ function RankingView() {
   const handleCompare = (opponent) => {
     if (!currentPlayer || opponent.id === currentPlayer.id) return
 
-    navigate('/h2h', {
+    navigate(`/h2h/${opponent.id}`, {
       state: {
         playerOne: currentPlayer,
         playerTwo: opponent,
