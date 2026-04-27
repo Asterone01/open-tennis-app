@@ -1,0 +1,36 @@
+# 🧠 OPEN - PROJECT STATE (BRAIN)
+
+## 🎯 Visión del Proyecto
+OPEN es una plataforma social deportiva gamificada (RPG) para clubes de raqueta.
+- **Formato:** PWA (Progressive Web App) para acceso móvil sin costos de App Store.
+- **Estética:** Monocromática Premium (Blanco, Negro, Grises técnicos).
+- **Core:** Radar Hexagonal de Stats + Sistema de XP + White Label.
+
+## 🛠 Stack Técnico
+- **Frontend:** Flutter (Web/PWA)
+- **Backend:** Supabase (Auth, DB, Edge Functions)
+- **Gestión:** GitHub + Antigravity (Codex GPT 5.6)
+
+## 📊 Reglas de Gamificación (Lógica Core)
+- Nivel = floor(0.2 * sqrt(XP_total)) + 1
+- Racha (Streak): 48h de ventana. Multiplicador 1.5x a los 7 días.
+
+## 📍 Estado Actual
+- **Fase:** 1 (Setup e Identidad)
+- **Última tarea:** Inicialización del proyecto.
+- **Próximo paso:** Configuración de Supabase Auth y pantalla de Splash.
+
+## 📝 Listado de Tareas (Roadmap)
+- [ ] [FASE 1] Setup Supabase & Auth.
+- [ ] [FASE 1] UI: Splash Screen & Role Selection.
+- [ ] [FASE 2] DB: Tabla de Perfiles y Stats de Jugador.
+- [ ] [FASE 2] UI: Player Card (Radar Hexagonal).
+- [ ] [FASE 2.5] Lógica de XP y Logros (Edge Functions).
+- [ ] [FASE 3] Ranking Global & Matchmaking.
+- [ ] [FASE 4/5] Admin Hub (White Label) & QR Scanner.
+
+## 📜 Reglas de Oro para la IA
+1. SIEMPRE leer este archivo antes de sugerir código.
+2. SIEMPRE actualizar la sección "Estado Actual" al terminar una tarea.
+3. SIEMPRE realizar commits a GitHub después de código funcional.
+4. NUNCA usar colores que no sean la paleta monocromática definida.

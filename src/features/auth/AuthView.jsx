@@ -4,7 +4,11 @@ import { supabase } from '../../lib/supabase'
 import { setStoredRole } from '../../hooks/useActiveRole'
 import OnboardingWizard from './OnboardingWizard'
 
-const loginRoles = ['manager', 'coach', 'player']
+const loginRoles = [
+  { id: 'manager', label: 'Manager', description: 'Clubes y torneos' },
+  { id: 'coach', label: 'Coach', description: 'Evaluaciones' },
+  { id: 'player', label: 'Player', description: 'Perfil y retos' },
+]
 
 function AuthView() {
   const [mode, setMode] = useState('login')
@@ -101,24 +105,46 @@ function AuthView() {
                 Iniciar sesión
               </h2>
               <p className="mt-2 text-sm text-open-muted">
-                Elige tu vista activa y accede a OPEN.
+                Selecciona con qué perfil quieres entrar.
               </p>
             </div>
 
-            <div className="grid grid-cols-3 rounded-full border border-open-border bg-open-surface p-1">
+            <div className="grid gap-2">
               {loginRoles.map((role) => (
                 <button
-                  key={role}
+                  key={role.id}
                   type="button"
-                  onClick={() => setSelectedRole(role)}
+                  onClick={() => setSelectedRole(role.id)}
                   className={[
-                    'h-10 rounded-full text-xs font-semibold uppercase tracking-[0.08em] transition',
-                    selectedRole === role
-                      ? 'bg-open-primary text-white'
-                      : 'text-open-muted hover:text-open-ink',
+                    'group flex items-center justify-between border px-4 py-3 text-left transition',
+                    selectedRole === role.id
+                      ? 'border-black bg-black text-white'
+                      : 'border-open-border bg-open-surface text-open-ink hover:border-black hover:bg-black hover:text-white',
                   ].join(' ')}
                 >
-                  {role}
+                  <span>
+                    <span className="block text-sm font-semibold">
+                      {role.label}
+                    </span>
+                    <span
+                      className={[
+                        'mt-1 block text-xs',
+                        selectedRole === role.id
+                          ? 'text-white/75'
+                          : 'text-open-muted group-hover:text-white/75',
+                      ].join(' ')}
+                    >
+                      {role.description}
+                    </span>
+                  </span>
+                  <span
+                    className={[
+                      'h-3 w-3 rounded-full border',
+                      selectedRole === role.id
+                        ? 'border-white bg-white'
+                        : 'border-open-muted',
+                    ].join(' ')}
+                  />
                 </button>
               ))}
             </div>
@@ -126,7 +152,8 @@ function AuthView() {
             <div className="grid grid-cols-2 border border-open-border bg-open-surface p-1">
               <button
                 type="button"
-                className="h-10 bg-open-primary text-sm font-semibold text-white transition"
+                onClick={() => setMode('login')}
+                className="h-10 bg-black text-sm font-semibold text-white transition hover:bg-black"
               >
                 Entrar
               </button>
@@ -180,9 +207,9 @@ function AuthView() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-12 bg-open-primary px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-open-muted"
+              className="h-12 bg-black px-5 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-black disabled:opacity-45"
             >
-              {isSubmitting ? 'Entrando...' : 'Entrar'}
+              {isSubmitting ? 'Iniciando sesión...' : 'Iniciar sesión'}
             </button>
 
             <button
