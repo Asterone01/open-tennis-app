@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import BrandKitEditor from './BrandKitEditor'
+import ClubPlayersManager from './ClubPlayersManager'
 
 function ManagerDashboard() {
   return (
@@ -24,6 +25,7 @@ function ManagerDashboard() {
       </div>
 
       <BrandKitEditor />
+      <ClubPlayersManager />
     </motion.section>
   )
 }

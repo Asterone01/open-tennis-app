@@ -26,6 +26,7 @@ Build OPEN as a mobile-first PWA for tennis communities with role-based experien
 - Competition phase: club ranking view, Face-to-Face radar comparison, and `/ranking` + `/h2h/:opponentId` routes.
 - Simplified auth UX: first choose Manager/Coach/Player, then log in or register in the next screen.
 - Auth category enforcement: selected login category must match account permissions; registration CTA now sits below login CTA.
+- Manager player connection tools: manager can list all OPEN players, filter unassigned/my club, and attach or remove players from their club.
 
 ## Supabase SQL Files
 
@@ -33,6 +34,7 @@ Build OPEN as a mobile-first PWA for tennis communities with role-based experien
 - `supabase/gamification_schema.sql`: adds XP, level, streak columns to `players`.
 - `supabase/coach_evaluations_schema.sql`: adds radar stat columns to `players`.
 - `supabase/update_roles_clubs.sql`: adds `club_id` and `is_coach` to `players`.
+- `supabase/players_access_policies.sql`: enables authenticated player reads and role-based updates for self, managers, and coaches.
 
 ## Important Notes
 
@@ -49,5 +51,5 @@ Test and harden the mobile PWA experience:
 1. Run the app on a phone from the LAN URL.
 2. Confirm browser install/add-to-home-screen behavior.
 3. Audit mobile layouts for login, dashboard, profile, ranking, H2H, coach, and manager views.
-4. Add a real `rating` column or ELO calculation source in Supabase for ranking.
-5. Add GitHub remote, then commit and push the current functional changes.
+4. Run `supabase/players_access_policies.sql` in Supabase to unblock player/coach/manager cross-role reads and updates.
+5. Add a real `rating` column or ELO calculation source in Supabase for ranking.
