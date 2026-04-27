@@ -34,7 +34,7 @@ Build OPEN as a mobile-first PWA for tennis communities with role-based experien
 - `supabase/gamification_schema.sql`: adds XP, level, streak columns to `players`.
 - `supabase/coach_evaluations_schema.sql`: adds radar stat columns to `players`.
 - `supabase/update_roles_clubs.sql`: adds `club_id` and `is_coach` to `players`.
-- `supabase/players_user_id_fix.sql`: adds `user_id` to `players` and backfills it from `auth.users.email`.
+- `supabase/players_user_id_fix.sql`: adds `user_id`, `email`, and `full_name` to `players`, then backfills `user_id` from `auth.users.email` when possible.
 - `supabase/players_access_policies.sql`: enables authenticated player reads and role-based updates for self, managers, and coaches.
 
 ## Important Notes

@@ -3,10 +3,11 @@
 -- "column players.user_id does not exist".
 
 alter table if exists public.players
-  add column if not exists user_id uuid references auth.users(id) on delete cascade;
+  add column if not exists user_id uuid references auth.users(id) on delete cascade,
+  add column if not exists email text,
+  add column if not exists full_name text;
 
--- Backfill existing player rows by matching email with auth.users.email.
--- This makes old manually-created rows compatible with the app.
+-- Backfill user_id for rows that already have an email value.
 update public.players as players
 set user_id = users.id
 from auth.users as users
