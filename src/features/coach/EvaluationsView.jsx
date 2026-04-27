@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Save, UserRound, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import ClubPlayersManager from '../admin/ClubPlayersManager'
 
 const statFields = [
   { key: 'stat_ataque', label: 'Ataque' },
@@ -175,6 +176,8 @@ function EvaluationsView() {
       {isLoading ? (
         <p className="text-sm text-open-muted">Cargando alumnos...</p>
       ) : null}
+
+      <ClubPlayersManager mode="coach" />
 
       <AnimatePresence>
         {selectedPlayer ? (

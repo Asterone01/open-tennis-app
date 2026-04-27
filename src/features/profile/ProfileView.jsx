@@ -37,7 +37,7 @@ function ProfileView() {
     <section className="mx-auto grid w-full max-w-5xl gap-6">
       <JoinClubModal
         isOpen={isJoinOpen}
-        playerId={player?.id}
+        player={player}
         onClose={() => setIsJoinOpen(false)}
         onJoined={handleJoined}
       />

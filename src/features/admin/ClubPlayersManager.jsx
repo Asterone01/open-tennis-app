@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Unlink, UserRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
-function ClubPlayersManager() {
+function ClubPlayersManager({ mode = 'manager' }) {
   const [club, setClub] = useState(null)
   const [players, setPlayers] = useState([])
   const [filter, setFilter] = useState('all')
@@ -28,16 +28,48 @@ function ClubPlayersManager() {
         return
       }
 
-      const { data: clubData, error: clubError } = await supabase
-        .from('clubs')
-        .select('id, name')
-        .eq('manager_id', userData.user.id)
-        .maybeSingle()
+      let clubData = null
+      let clubError = null
+
+      if (mode === 'coach') {
+        const { data: coachProfile, error: coachError } = await supabase
+          .from('players')
+          .select('club_id')
+          .eq('user_id', userData.user.id)
+          .maybeSingle()
+
+        if (coachError) {
+          clubError = coachError
+        } else if (coachProfile?.club_id) {
+          const response = await supabase
+            .from('clubs')
+            .select('id, name')
+            .eq('id', coachProfile.club_id)
+            .maybeSingle()
+
+          clubData = response.data
+          clubError = response.error
+        }
+      } else {
+        const response = await supabase
+          .from('clubs')
+          .select('id, name')
+          .eq('manager_id', userData.user.id)
+          .maybeSingle()
+
+        clubData = response.data
+        clubError = response.error
+      }
 
       if (!isMounted) return
 
       if (clubError || !clubData) {
-        setError(clubError?.message || 'Primero crea o guarda tu club.')
+        setError(
+          clubError?.message ||
+            (mode === 'coach'
+              ? 'Primero vincula tu perfil de coach a un club.'
+              : 'Primero crea o guarda tu club.'),
+        )
         setIsLoading(false)
         return
       }
@@ -65,7 +97,7 @@ function ClubPlayersManager() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [mode])
 
   const visiblePlayers = useMemo(() => {
     if (!club) return []
@@ -137,7 +169,9 @@ function ClubPlayersManager() {
         <div>
           <p className="text-sm font-semibold text-open-muted">Jugadores OPEN</p>
           <h2 className="mt-2 text-2xl font-semibold text-open-ink">
-            Vincular jugadores al club
+            {mode === 'coach'
+              ? 'Agregar alumnos al club'
+              : 'Vincular jugadores al club'}
           </h2>
         </div>
         <div className="grid grid-cols-3 border border-open-light bg-open-bg p-1 text-sm font-semibold">

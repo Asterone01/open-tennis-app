@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Search, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
-function JoinClubModal({ isOpen, playerId, onClose, onJoined }) {
+function JoinClubModal({ isOpen, player, onClose, onJoined }) {
   const [clubs, setClubs] = useState([])
   const [query, setQuery] = useState('')
   const [selectedClub, setSelectedClub] = useState(null)
@@ -46,15 +46,55 @@ function JoinClubModal({ isOpen, playerId, onClose, onJoined }) {
   }, [clubs, query])
 
   const handleJoin = async () => {
-    if (!selectedClub || !playerId) return
+    if (!selectedClub) return
 
     setIsSaving(true)
     setError('')
 
-    const { error: updateError } = await supabase
-      .from('players')
-      .update({ club_id: selectedClub.id })
-      .eq('id', playerId)
+    const { data: userData, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !userData.user) {
+      setError(userError?.message || 'No se pudo validar tu sesion.')
+      setIsSaving(false)
+      return
+    }
+
+    const user = userData.user
+    const payload = {
+      user_id: user.id,
+      email: player?.email || user.email,
+      full_name:
+        player?.full_name ||
+        user.user_metadata?.full_name ||
+        user.user_metadata?.nombre ||
+        user.email,
+      club_id: selectedClub.id,
+    }
+
+    const query = player?.id
+      ? supabase
+          .from('players')
+          .update({ club_id: selectedClub.id })
+          .eq('id', player.id)
+          .select()
+          .maybeSingle()
+      : supabase.from('players').insert(payload).select().maybeSingle()
+
+    const { data, error: updateError } = await query
+
+    if (!updateError && player?.id && !data) {
+      const { error: insertError } = await supabase
+        .from('players')
+        .insert(payload)
+        .select()
+        .maybeSingle()
+
+      if (insertError) {
+        setError(insertError.message)
+        setIsSaving(false)
+        return
+      }
+    }
 
     if (updateError) {
       setError(updateError.message)
@@ -65,6 +105,8 @@ function JoinClubModal({ isOpen, playerId, onClose, onJoined }) {
 
     setIsSaving(false)
   }
+
+  const canJoin = Boolean(selectedClub) && !isSaving
 
   return (
     <AnimatePresence>
@@ -126,8 +168,8 @@ function JoinClubModal({ isOpen, playerId, onClose, onJoined }) {
                   className={[
                     'flex items-center gap-3 border p-3 text-left transition',
                     selectedClub?.id === club.id
-                      ? 'border-open-primary bg-open-bg'
-                      : 'border-open-light bg-open-surface hover:border-open-primary',
+                      ? 'border-open-primary bg-open-primary text-white'
+                      : 'border-open-light bg-open-surface text-open-ink hover:border-open-primary hover:bg-open-primary hover:text-white',
                   ].join(' ')}
                 >
                   {club.logo_url ? (
@@ -137,11 +179,9 @@ function JoinClubModal({ isOpen, playerId, onClose, onJoined }) {
                       className="h-10 w-10 object-contain"
                     />
                   ) : (
-                    <div className="h-10 w-10 bg-open-primary" />
+                    <div className="h-10 w-10 bg-current opacity-80" />
                   )}
-                  <span className="text-sm font-semibold text-open-ink">
-                    {club.name}
-                  </span>
+                  <span className="text-sm font-semibold">{club.name}</span>
                 </button>
               ))}
             </div>
@@ -153,7 +193,7 @@ function JoinClubModal({ isOpen, playerId, onClose, onJoined }) {
             <button
               type="button"
               onClick={handleJoin}
-              disabled={!selectedClub || isSaving || !playerId}
+              disabled={!canJoin}
               className="mt-5 h-12 w-full bg-open-primary px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-open-muted"
             >
               {isSaving ? 'Vinculando...' : 'Vincular'}
