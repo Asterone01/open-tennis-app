@@ -60,6 +60,7 @@ function JoinClubModal({ isOpen, player, onClose, onJoined }) {
     }
 
     const user = userData.user
+    const userRole = user.user_metadata?.role || player?.role || 'player'
     const payload = {
       user_id: user.id,
       email: player?.email || user.email,
@@ -68,6 +69,8 @@ function JoinClubModal({ isOpen, player, onClose, onJoined }) {
         user.user_metadata?.full_name ||
         user.user_metadata?.nombre ||
         user.email,
+      role: userRole,
+      is_coach: Boolean(player?.is_coach || userRole === 'coach'),
       club_id: selectedClub.id,
     }
 
@@ -78,14 +81,30 @@ function JoinClubModal({ isOpen, player, onClose, onJoined }) {
           .eq('id', player.id)
           .select()
           .maybeSingle()
-      : supabase.from('players').insert(payload).select().maybeSingle()
+      : supabase
+          .from('players')
+          .upsert(
+            {
+              ...payload,
+              id: window.crypto?.randomUUID?.(),
+            },
+            { onConflict: 'user_id' },
+          )
+          .select()
+          .maybeSingle()
 
     const { data, error: updateError } = await query
 
     if (!updateError && player?.id && !data) {
       const { error: insertError } = await supabase
         .from('players')
-        .insert(payload)
+        .upsert(
+          {
+            ...payload,
+            id: window.crypto?.randomUUID?.(),
+          },
+          { onConflict: 'user_id' },
+        )
         .select()
         .maybeSingle()
 

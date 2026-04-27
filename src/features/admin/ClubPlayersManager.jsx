@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Unlink, UserRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import JoinClubModal from '../profile/JoinClubModal'
 
 function ClubPlayersManager({ mode = 'manager' }) {
   const [club, setClub] = useState(null)
+  const [currentPlayer, setCurrentPlayer] = useState(null)
   const [players, setPlayers] = useState([])
   const [filter, setFilter] = useState('all')
+  const [isJoinOpen, setIsJoinOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState('')
   const [error, setError] = useState('')
@@ -34,13 +37,17 @@ function ClubPlayersManager({ mode = 'manager' }) {
       if (mode === 'coach') {
         const { data: coachProfile, error: coachError } = await supabase
           .from('players')
-          .select('club_id')
+          .select('id, user_id, email, full_name, club_id, is_coach')
           .eq('user_id', userData.user.id)
           .maybeSingle()
 
         if (coachError) {
           clubError = coachError
-        } else if (coachProfile?.club_id) {
+        } else {
+          setCurrentPlayer(coachProfile || null)
+        }
+
+        if (coachProfile?.club_id) {
           const response = await supabase
             .from('clubs')
             .select('id, name')
@@ -98,6 +105,35 @@ function ClubPlayersManager({ mode = 'manager' }) {
       isMounted = false
     }
   }, [mode])
+
+  const handleCoachJoined = async (joinedClub) => {
+    setClub(joinedClub)
+    setMessage(`Tu perfil de coach fue vinculado a ${joinedClub.name}.`)
+    setError('')
+
+    const { data: userData } = await supabase.auth.getUser()
+
+    if (userData.user) {
+      const { data } = await supabase
+        .from('players')
+        .select('id, user_id, email, full_name, club_id, is_coach')
+        .eq('user_id', userData.user.id)
+        .maybeSingle()
+
+      setCurrentPlayer(data || null)
+    }
+
+    const { data: playersData, error: playersError } = await supabase
+      .from('players')
+      .select('id, full_name, email, level, xp, club_id, is_coach')
+      .order('full_name', { ascending: true })
+
+    if (playersError) {
+      setError(playersError.message)
+    } else {
+      setPlayers(playersData || [])
+    }
+  }
 
   const visiblePlayers = useMemo(() => {
     if (!club) return []
@@ -165,6 +201,13 @@ function ClubPlayersManager({ mode = 'manager' }) {
 
   return (
     <section className="grid gap-5 border border-open-light bg-open-surface p-5 md:p-6">
+      <JoinClubModal
+        isOpen={isJoinOpen}
+        player={currentPlayer}
+        onClose={() => setIsJoinOpen(false)}
+        onJoined={handleCoachJoined}
+      />
+
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
         <div>
           <p className="text-sm font-semibold text-open-muted">Jugadores OPEN</p>
@@ -196,9 +239,18 @@ function ClubPlayersManager({ mode = 'manager' }) {
       </div>
 
       {error ? (
-        <p className="border border-open-light bg-open-bg px-4 py-3 text-sm text-open-muted">
-          {error}
-        </p>
+        <div className="grid gap-3 border border-open-light bg-open-bg px-4 py-3 text-sm text-open-muted">
+          <p>{error}</p>
+          {mode === 'coach' ? (
+            <button
+              type="button"
+              onClick={() => setIsJoinOpen(true)}
+              className="h-10 justify-self-start bg-open-primary px-4 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              Vincular mi coach a un club
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {message ? (

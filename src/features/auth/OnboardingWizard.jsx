@@ -102,8 +102,9 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
       return
     }
 
-    if (selectedRole === 'player') {
+    if (selectedRole === 'player' || selectedRole === 'coach') {
       const { error: playerError } = await supabase.from('players').insert({
+        id: window.crypto?.randomUUID?.(),
         user_id: data.user?.id,
         email: formData.email,
         full_name: formData.fullName,
@@ -111,6 +112,7 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
         birth_date: formData.birthDate || null,
         years_playing: Number(formData.yearsPlaying || 0),
         role: selectedRole,
+        is_coach: selectedRole === 'coach',
       })
 
       if (playerError) {

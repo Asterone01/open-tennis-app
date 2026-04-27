@@ -1,12 +1,36 @@
 -- OPEN players access policies for cross-role flows.
 -- Run after the players table exists.
 
+create extension if not exists pgcrypto;
+
 alter table if exists public.players
   add column if not exists user_id uuid references auth.users(id) on delete cascade,
   add column if not exists email text,
   add column if not exists full_name text,
+  add column if not exists role text default 'player',
+  add column if not exists sex text,
+  add column if not exists birth_date date,
+  add column if not exists years_playing integer not null default 0,
+  add column if not exists xp integer not null default 0,
+  add column if not exists level integer not null default 1,
+  add column if not exists rating integer not null default 1000,
   add column if not exists club_id uuid references public.clubs(id) on delete set null,
   add column if not exists is_coach boolean not null default false;
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'players'
+      and column_name = 'id'
+      and data_type = 'uuid'
+  ) then
+    alter table public.players
+      alter column id set default gen_random_uuid();
+  end if;
+end $$;
 
 update public.players as players
 set user_id = users.id

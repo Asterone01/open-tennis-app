@@ -29,6 +29,7 @@ Build OPEN as a mobile-first PWA for tennis communities with role-based experien
 - Manager player connection tools: manager can list all OPEN players, filter unassigned/my club, and attach or remove players from their club.
 - Coach player connection tools: coaches linked to a club can list OPEN players and attach unassigned players to their club from the coach dashboard.
 - Player club joining is resilient when the player row is missing; joining a club can create the authenticated user's `players` row before linking `club_id`.
+- Hardened club linking: coach signup now creates a `players` row with `is_coach`, coaches can link themselves to a club from the coach dashboard, and the SQL sets a UUID default on `players.id` when missing.
 
 ## Supabase SQL Files
 
@@ -54,5 +55,5 @@ Test and harden the mobile PWA experience:
 1. Run the app on a phone from the LAN URL.
 2. Confirm browser install/add-to-home-screen behavior.
 3. Audit mobile layouts for login, dashboard, profile, ranking, H2H, coach, and manager views.
-4. Re-test Supabase flows end to end: player joins club, manager links players, coach links/evaluates players.
-5. Add a real `rating` column or ELO calculation source in Supabase for ranking.
+4. Re-run `supabase/players_access_policies.sql` in Supabase after `clubs_schema.sql`, then test player joins club, coach joins club, manager links players, and coach evaluates players.
+5. Add richer manager/coach audit trails for club membership requests.
