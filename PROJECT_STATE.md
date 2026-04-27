@@ -22,6 +22,8 @@ Build OPEN as a mobile-first PWA for tennis communities with role-based experien
 - White-label theme engine using CSS variables from `clubs.primary_color`.
 - Club logo support in dashboard top bar.
 - Coach dashboard with player evaluation sliders and +50 XP reward.
+- PWA base: manifest, mobile metadata, service worker registration, and OPEN app icons.
+- Competition phase: club ranking view, Face-to-Face radar comparison, and `/ranking` + `/h2h` routes.
 
 ## Supabase SQL Files
 
@@ -40,10 +42,10 @@ Build OPEN as a mobile-first PWA for tennis communities with role-based experien
 
 ## Next Logical Step
 
-Make the app installable as a true PWA:
+Test and harden the mobile PWA experience:
 
-1. Add web app manifest.
-2. Add mobile icons and theme color.
-3. Add service worker registration.
-4. Test mobile viewport and install prompt behavior.
-5. Commit and push changes to GitHub.
+1. Run the app on a phone from the LAN URL.
+2. Confirm browser install/add-to-home-screen behavior.
+3. Audit mobile layouts for login, dashboard, profile, ranking, H2H, coach, and manager views.
+4. Add a real `rating` column or ELO calculation source in Supabase for ranking.
+5. Add GitHub remote, then commit and push the current functional changes.

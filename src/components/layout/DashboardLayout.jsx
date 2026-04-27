@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Home, LogOut, Medal, Trophy, User } from 'lucide-react'
+import { Home, ListOrdered, LogOut, Trophy, User } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import useActiveRole from '../../hooks/useActiveRole'
 import useTheme from '../../hooks/useTheme'
@@ -7,7 +7,7 @@ import usePlayerProfile from '../../features/profile/usePlayerProfile'
 
 const navItems = [
   { label: 'Inicio', to: '/dashboard', icon: Home },
-  { label: 'Ranking', to: '/dashboard/ranking', icon: Medal },
+  { label: 'Ranking', to: '/ranking', icon: ListOrdered },
   { label: 'Torneos', to: '/dashboard/torneos', icon: Trophy },
   { label: 'Perfil', to: '/profile', icon: User },
 ]

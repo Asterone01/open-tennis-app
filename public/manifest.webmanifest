@@ -1,0 +1,25 @@
+{
+  "name": "OPEN Tennis",
+  "short_name": "OPEN",
+  "description": "Mobile-first tennis hub for players, coaches, and clubs.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAFAFA",
+  "theme_color": "#0D0D0F",
+  "icons": [
+    {
+      "src": "/open-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/open-icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
