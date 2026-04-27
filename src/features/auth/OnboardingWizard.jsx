@@ -26,9 +26,9 @@ const slide = {
   animate: { x: 0, opacity: 1 },
 }
 
-function OnboardingWizard({ onBackToLogin }) {
-  const [step, setStep] = useState(1)
-  const [selectedRole, setSelectedRole] = useState('')
+function OnboardingWizard({ initialRole = '', onBackToLogin }) {
+  const [step, setStep] = useState(initialRole ? 2 : 1)
+  const [selectedRole, setSelectedRole] = useState(initialRole)
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -57,7 +57,7 @@ function OnboardingWizard({ onBackToLogin }) {
     setError('')
     setMessage('')
 
-    if (step === 1) {
+    if (step === 1 || (initialRole && step === 2)) {
       onBackToLogin?.()
       return
     }
