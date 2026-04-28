@@ -210,11 +210,12 @@ function CompareStat({ label, left, right }) {
 
 function buildRadarData(playerOne, playerTwo) {
   return [
-    ['Ataque', 'stat_ataque'],
-    ['Defensa', 'stat_defensa'],
+    ['Derecha', 'stat_derecha'],
+    ['Reves', 'stat_reves'],
     ['Saque', 'stat_saque'],
-    ['Físico', 'stat_fisico'],
-    ['Mentalidad', 'stat_mentalidad'],
+    ['Volea', 'stat_volea'],
+    ['Movilidad', 'stat_movilidad'],
+    ['Slice', 'stat_slice'],
   ].map(([skill, key]) => ({
     skill,
     playerOne: playerOne[key] ?? 50,

@@ -1,36 +1,101 @@
-# 🧠 OPEN - PROJECT STATE (BRAIN)
+# OPEN - PROJECT STATE
 
-## 🎯 Visión del Proyecto
-OPEN es una plataforma social deportiva gamificada (RPG) para clubes de raqueta.
-- **Formato:** PWA (Progressive Web App) para acceso móvil sin costos de App Store.
-- **Estética:** Monocromática Premium (Blanco, Negro, Grises técnicos).
-- **Core:** Radar Hexagonal de Stats + Sistema de XP + White Label.
+## Vision del Proyecto
+OPEN es una plataforma social deportiva gamificada para comunidades y clubes de raqueta.
+- Formato: PWA mobile-first para acceso movil sin costos de App Store.
+- Estetica: monocromatica premium, con blanco, negro y grises tecnicos.
+- Core: radar hexagonal de stats, sistema de XP, roles y white label por club.
 
-## 🛠 Stack Técnico
-- **Frontend:** Flutter (Web/PWA)
-- **Backend:** Supabase (Auth, DB, Edge Functions)
-- **Gestión:** GitHub + Antigravity (Codex GPT 5.6)
+## Stack Tecnico
+- Frontend: React 19 + Vite 8.
+- Lenguaje: JavaScript / JSX.
+- Estilos: Tailwind CSS + CSS propio.
+- Backend: Supabase Auth + PostgreSQL + RLS policies.
+- PWA: manifest, service worker, metadata movil e iconos OPEN.
+- Librerias clave: @supabase/supabase-js, react-router-dom, lucide-react, framer-motion, recharts.
+- Gestion: GitHub + Codex.
 
-## 📊 Reglas de Gamificación (Lógica Core)
+## Reglas de Gamificacion
 - Nivel = floor(0.2 * sqrt(XP_total)) + 1
-- Racha (Streak): 48h de ventana. Multiplicador 1.5x a los 7 días.
+- Racha: ventana de 48h.
+- Multiplicador de racha: 1.5x a los 7 dias.
 
-## 📍 Estado Actual
-- **Fase:** 1 (Setup e Identidad)
-- **Última tarea:** Inicialización del proyecto.
-- **Próximo paso:** Configuración de Supabase Auth y pantalla de Splash.
+## Estado Actual
+- Fase: PWA funcional con Auth, dashboards por rol, perfil de jugador, coach tools, manager tools y competencia.
+- Ultima tarea: proyecto preparado para deploy en Vercel con fallback SPA.
+- Proximo paso: autorizar deploy externo a Vercel y ejecutar `npx.cmd vercel --prod --yes`, o conectar el repo desde Vercel Dashboard.
 
-## 📝 Listado de Tareas (Roadmap)
-- [ ] [FASE 1] Setup Supabase & Auth.
-- [ ] [FASE 1] UI: Splash Screen & Role Selection.
-- [ ] [FASE 2] DB: Tabla de Perfiles y Stats de Jugador.
-- [ ] [FASE 2] UI: Player Card (Radar Hexagonal).
-- [ ] [FASE 2.5] Lógica de XP y Logros (Edge Functions).
-- [ ] [FASE 3] Ranking Global & Matchmaking.
-- [ ] [FASE 4/5] Admin Hub (White Label) & QR Scanner.
+## Implementado
+- Auth con login, registro y recuperacion de password.
+- Onboarding por rol: Manager, Coach y Player.
+- Seleccion de rol activo para usuarios con mas de un rol.
+- Dashboard responsive con top bar, sidebar desktop y bottom nav movil.
+- Player dashboard con XP, nivel, racha, daily quests y level-up overlay.
+- Perfil de jugador con radar chart y datos dinamicos desde Supabase.
+- Modal para unirse a club.
+- Manager dashboard con Brand Kit editor y herramientas para conectar jugadores al club.
+- Coach dashboard con evaluaciones, sliders de stats y recompensa de XP.
+- White-label theme engine con CSS variables desde `clubs.primary_color`.
+- Logo del club en top bar.
+- Ranking de club y comparacion Face-to-Face.
+- Rutas principales de competencia: `/ranking` y `/h2h/:opponentId`.
+- Base PWA: `manifest.webmanifest`, `sw.js`, registro de service worker e iconos.
+- Fuente display de marca: Special Gothic Expanded One para titulos y logo textual OPEN, con inclinacion oblique.
+- Onboarding player/coach extendido: credenciales, perfil basico, grupo de edad, categoria sugerida y solicitud de club.
+- Player Card muestra avatar, categoria, grupo de edad y estado de membresia.
+- Player Card muestra el club al que pertenece el jugador/coach.
+- Coach y manager pueden abrir `/players/:playerId` desde sus listas para revisar perfiles de jugadores.
+- Manager/coach pueden aprobar solicitudes pendientes de club desde la lista de jugadores.
+- Perfil de jugador expandido segun roadmap: hero XP/rating, stats cards, barras de habilidades, medallas, rachas, historial y trofeos placeholder.
+- Habilidades canonicas del jugador: derecha, reves, saque, volea, movilidad y slice. Radar, barras y evaluaciones usan estos mismos campos.
+- Color de Player Card: personalizado por jugador, si no existe usa color principal del club aprobado, y si no hay club usa negro OPEN.
+- XP History base: tabla `xp_history`, tabla `streaks`, utilidad de acreditacion de XP y panel de ultimos movimientos en Home.
+- Evaluaciones de coach ahora acreditan XP con historial y actualizan nivel con la formula oficial.
+- Entrenamientos de coach: calendario por fecha, programacion con duracion/objetivo/plan, presets de drills, lista de jugadores aprobados del club, eliminacion de sesiones planeadas y cierre con +50 XP para presentes.
+- Partidos amistosos singles: marcador dinamico por sets, rival del club, ganador, partido en vivo, estadisticas finales por jugador, confirmacion/rechazo del rival y XP automatico al confirmar.
+- Estadisticas historicas de partido en `players`: aces, dobles faltas, winners, errores no forzados, errores forzados, puntos de partido y puntos en contra.
+- Perfil del jugador muestra estadisticas acumuladas de partido y ultimos amistosos registrados.
+- Foto de perfil editable: click en avatar de Player Card, subida a Storage y guardado en `avatar_url`/metadata.
+- Rachas de amistosos: al confirmar partido se actualizan rachas de partidos jugados, victorias y derrotas; el perfil las muestra.
+- Evaluacion de coach guiada: muestra cuando evaluar, cuanto subir/bajar, evidencia por habilidad, deltas vs baseline y exige justificacion.
+- Evaluacion de coach en ventana flotante centrada, con guardado de XP y notificacion in-app al jugador.
+- Campana de notificaciones en el dashboard con estado leido/no leido y enlace al perfil.
+- Configuracion de Vercel: `vercel.json` reescribe rutas de React hacia `index.html`.
 
-## 📜 Reglas de Oro para la IA
-1. SIEMPRE leer este archivo antes de sugerir código.
-2. SIEMPRE actualizar la sección "Estado Actual" al terminar una tarea.
-3. SIEMPRE realizar commits a GitHub después de código funcional.
-4. NUNCA usar colores que no sean la paleta monocromática definida.
+## Supabase SQL Files
+- `supabase/clubs_schema.sql`: crea tabla `clubs` y politicas RLS.
+- `supabase/gamification_schema.sql`: agrega XP, nivel y racha a `players`.
+- `supabase/coach_evaluations_schema.sql`: agrega columnas de stats radar a `players`.
+- `supabase/update_roles_clubs.sql`: agrega `club_id` e `is_coach` a `players`.
+- `supabase/players_user_id_fix.sql`: agrega `user_id`, `email` y `full_name`, y rellena `user_id` desde `auth.users.email` cuando es posible.
+- `supabase/player_identity_schema.sql`: agrega identidad, categoria, grupo de edad, estado de membresia y onboarding completion a `players`.
+- `supabase/players_access_policies.sql`: endurece columnas necesarias, backfill de links y politicas RLS para jugadores, managers y coaches.
+- `supabase/training_attendance_schema.sql`: crea entrenamientos, asistencia, duracion, plan de clase, presets y politicas RLS.
+- `supabase/friendly_matches_schema.sql`: crea partidos amistosos singles, RLS y RPC segura `open_confirm_friendly_match`.
+- `supabase/profile_avatars_storage.sql`: crea bucket `profile-avatars` y politicas de lectura/subida por usuario.
+- `supabase/notifications_schema.sql`: crea notificaciones in-app, lectura por usuario y marcado como leido.
+
+## Roadmap
+- [x] Setup React/Vite PWA.
+- [x] Supabase Auth.
+- [x] Role Selection / Onboarding.
+- [x] Player dashboard.
+- [x] Player Card con radar.
+- [x] Manager Hub / White Label.
+- [x] Coach evaluations.
+- [x] Ranking y H2H.
+- [x] Onboarding extendido de identidad, edad, categoria y club.
+- [x] Player Card 2.0 / Perfil del Jugador completo base.
+- [x] XP History base.
+- [x] Asistencia manual a entrenamientos por coach.
+- [x] Partidos amistosos singles base.
+- [ ] Auditoria PWA movil en dispositivo real.
+- [ ] Re-ejecutar SQL de politicas en Supabase y probar flujos completos.
+- [ ] Agregar audit trails para cambios de membresia de club.
+- [ ] Preparar siguiente ronda de UX polish.
+
+## Reglas de Oro para la IA
+1. SIEMPRE leer este archivo antes de sugerir codigo.
+2. SIEMPRE actualizar la seccion "Estado Actual" al terminar una tarea.
+3. Pedir confirmacion antes de hacer commits o pushes.
+4. NUNCA usar colores fuera de la paleta monocromatica definida, salvo color de marca aplicado por white label.

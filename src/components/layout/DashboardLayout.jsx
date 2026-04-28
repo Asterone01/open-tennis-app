@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { Home, ListOrdered, LogOut, Trophy, User } from 'lucide-react'
+import { Bell, Check, Home, ListOrdered, LogOut, Swords, User } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import useActiveRole from '../../hooks/useActiveRole'
 import useTheme from '../../hooks/useTheme'
@@ -8,7 +9,7 @@ import usePlayerProfile from '../../features/profile/usePlayerProfile'
 const navItems = [
   { label: 'Inicio', to: '/dashboard', icon: Home },
   { label: 'Ranking', to: '/ranking', icon: ListOrdered },
-  { label: 'Torneos', to: '/dashboard/torneos', icon: Trophy },
+  { label: 'Partidos', to: '/matches', icon: Swords },
   { label: 'Perfil', to: '/profile', icon: User },
 ]
 
@@ -35,7 +36,7 @@ function DashboardLayout() {
         <div className="flex h-16 items-center justify-between px-5 md:px-8">
           <NavLink
             to="/dashboard"
-            className="flex items-center gap-3 text-xl font-black uppercase tracking-[0.12em] text-open-ink [font-family:'Archivo_Black',Impact,sans-serif]"
+            className="flex items-center gap-3 text-xl text-open-ink"
           >
             {theme.logoUrl ? (
               <img
@@ -44,7 +45,7 @@ function DashboardLayout() {
                 className="h-8 max-w-28 object-contain"
               />
             ) : (
-              'OPEN'
+              <span className="open-logo">OPEN</span>
             )}
           </NavLink>
 
@@ -58,6 +59,7 @@ function DashboardLayout() {
                 ⇄ Cambiar a Vista {activeRole === 'coach' ? 'Jugador' : 'Coach'}
               </button>
             ) : null}
+            <NotificationsButton />
             <button
               type="button"
               onClick={handleSignOut}
@@ -96,6 +98,140 @@ function DashboardLayout() {
           <NavItem key={item.to} item={item} isMobile />
         ))}
       </nav>
+    </div>
+  )
+}
+
+function NotificationsButton() {
+  const [notifications, setNotifications] = useState([])
+  const [isOpen, setIsOpen] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadNotifications = async () => {
+      const { data: userData } = await supabase.auth.getUser()
+
+      if (!userData.user) return
+
+      const { data, error: notificationsError } = await supabase
+        .from('notifications')
+        .select('id, title, body, href, read_at, created_at')
+        .eq('user_id', userData.user.id)
+        .order('created_at', { ascending: false })
+        .limit(8)
+
+      if (!isMounted) return
+
+      if (notificationsError) {
+        setError('Corre notifications_schema.sql para activar avisos.')
+        setNotifications([])
+      } else {
+        setError('')
+        setNotifications(data || [])
+      }
+    }
+
+    loadNotifications()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const unreadCount = notifications.filter(
+    (notification) => !notification.read_at,
+  ).length
+
+  const markAsRead = async (notification) => {
+    if (!notification.read_at) {
+      await supabase
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', notification.id)
+
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id
+            ? { ...item, read_at: new Date().toISOString() }
+            : item,
+        ),
+      )
+    }
+
+    if (notification.href) {
+      window.location.assign(notification.href)
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen((current) => !current)}
+        className="relative grid h-10 w-10 place-items-center border border-open-light bg-open-bg text-open-ink transition hover:border-open-ink"
+        aria-label="Abrir notificaciones"
+      >
+        <Bell size={18} strokeWidth={1.8} />
+        {unreadCount > 0 ? (
+          <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center bg-open-primary px-1 text-[10px] font-semibold text-white">
+            {unreadCount}
+          </span>
+        ) : null}
+      </button>
+
+      {isOpen ? (
+        <div className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] border border-open-light bg-open-surface p-3 shadow-2xl shadow-black/10">
+          <div className="flex items-center justify-between border-b border-open-light pb-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-open-muted">
+              Notificaciones
+            </p>
+            <span className="text-xs font-semibold text-open-muted">
+              {unreadCount} nuevas
+            </span>
+          </div>
+
+          {error ? (
+            <p className="py-5 text-sm text-open-muted">{error}</p>
+          ) : null}
+
+          {!error && notifications.length === 0 ? (
+            <p className="py-5 text-sm text-open-muted">Sin notificaciones.</p>
+          ) : null}
+
+          <div className="grid max-h-80 overflow-y-auto">
+            {notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => markAsRead(notification)}
+                className="grid gap-1 border-b border-open-light py-3 text-left last:border-b-0"
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-open-ink">
+                    {notification.title}
+                  </span>
+                  {notification.read_at ? (
+                    <Check
+                      size={15}
+                      strokeWidth={1.8}
+                      className="shrink-0 text-open-muted"
+                    />
+                  ) : (
+                    <span className="h-2 w-2 shrink-0 bg-open-primary" />
+                  )}
+                </span>
+                {notification.body ? (
+                  <span className="text-xs leading-5 text-open-muted">
+                    {notification.body}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

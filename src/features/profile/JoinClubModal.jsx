@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Search, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { ensurePlayerProfile } from './profileConnections'
 
 function JoinClubModal({ isOpen, player, onClose, onJoined }) {
   const [clubs, setClubs] = useState([])
@@ -62,7 +63,6 @@ function JoinClubModal({ isOpen, player, onClose, onJoined }) {
     const user = userData.user
     const userRole = user.user_metadata?.role || player?.role || 'player'
     const payload = {
-      user_id: user.id,
       email: player?.email || user.email,
       full_name:
         player?.full_name ||
@@ -72,41 +72,24 @@ function JoinClubModal({ isOpen, player, onClose, onJoined }) {
       role: userRole,
       is_coach: Boolean(player?.is_coach || userRole === 'coach'),
       club_id: selectedClub.id,
+      club_membership_status: 'pending',
+      force: true,
     }
 
-    const query = player?.id
-      ? supabase
+    const { data, error: updateError } = player?.id
+      ? await supabase
           .from('players')
-          .update({ club_id: selectedClub.id })
+          .update({
+            club_id: selectedClub.id,
+            club_membership_status: 'pending',
+          })
           .eq('id', player.id)
           .select()
           .maybeSingle()
-      : supabase
-          .from('players')
-          .upsert(
-            {
-              ...payload,
-              id: window.crypto?.randomUUID?.(),
-            },
-            { onConflict: 'user_id' },
-          )
-          .select()
-          .maybeSingle()
-
-    const { data, error: updateError } = await query
+      : await ensurePlayerProfile(user, payload)
 
     if (!updateError && player?.id && !data) {
-      const { error: insertError } = await supabase
-        .from('players')
-        .upsert(
-          {
-            ...payload,
-            id: window.crypto?.randomUUID?.(),
-          },
-          { onConflict: 'user_id' },
-        )
-        .select()
-        .maybeSingle()
+      const { error: insertError } = await ensurePlayerProfile(user, payload)
 
       if (insertError) {
         setError(insertError.message)
@@ -215,7 +198,7 @@ function JoinClubModal({ isOpen, player, onClose, onJoined }) {
               disabled={!canJoin}
               className="mt-5 h-12 w-full bg-open-primary px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-open-muted"
             >
-              {isSaving ? 'Vinculando...' : 'Vincular'}
+              {isSaving ? 'Solicitando...' : 'Solicitar acceso'}
             </button>
           </motion.section>
         </motion.div>

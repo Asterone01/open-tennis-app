@@ -36,6 +36,28 @@ input {
   font: inherit;
 }
 
+@layer base {
+  h1,
+  h2 {
+    font-family: "Special Gothic Expanded One", Impact, sans-serif;
+    font-style: oblique 10deg;
+    font-synthesis: style;
+    font-weight: 400;
+  }
+}
+
+@layer components {
+  .open-logo {
+    display: inline-block;
+    font-family: "Special Gothic Expanded One", Impact, sans-serif;
+    font-style: oblique 10deg;
+    font-synthesis: style;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+}
+
 .open-slider {
   width: 100%;
   height: 2px;

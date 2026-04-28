@@ -1,21 +1,131 @@
-import { useState } from 'react'
-import { Award, ShieldCheck, Star, Target } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Palette, RotateCcw, Save } from 'lucide-react'
 import { applyTheme } from '../../hooks/useTheme'
 import { supabase } from '../../lib/supabase'
 import JoinClubModal from './JoinClubModal'
 import PlayerCard from './PlayerCard'
+import PlayerProfileDetails from './PlayerProfileDetails'
 import usePlayerProfile from './usePlayerProfile'
 
-const badges = [
-  { label: 'Primer torneo', detail: 'Participacion registrada', icon: Award },
-  { label: 'Mentalidad', detail: '7 dias activos', icon: ShieldCheck },
-  { label: 'Precision', detail: '85% en retos', icon: Target },
-  { label: 'Ascenso', detail: 'Nivel 12 alcanzado', icon: Star },
-]
-
 function ProfileView() {
+  const avatarInputRef = useRef(null)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
-  const { player, profile, isLoading, error, reloadProfile } = usePlayerProfile()
+  const [club, setClub] = useState(null)
+  const [recentMatches, setRecentMatches] = useState([])
+  const [streakRows, setStreakRows] = useState([])
+  const [cardColor, setCardColor] = useState('')
+  const [isSavingColor, setIsSavingColor] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [colorMessage, setColorMessage] = useState('')
+  const {
+    player,
+    profile,
+    user,
+    isLoading,
+    error,
+    reloadProfile,
+  } = usePlayerProfile()
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadClub = async () => {
+      if (!profile.clubId) {
+        setClub(null)
+        return
+      }
+
+      const { data } = await supabase
+        .from('clubs')
+        .select('id, name, primary_color, logo_url')
+        .eq('id', profile.clubId)
+        .maybeSingle()
+
+      if (isMounted) {
+        setClub(data || null)
+      }
+    }
+
+    loadClub()
+
+    return () => {
+      isMounted = false
+    }
+  }, [profile.clubId])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadMatches = async () => {
+      if (!player?.id) {
+        setRecentMatches([])
+        return
+      }
+
+      const { data } = await supabase
+        .from('friendly_matches')
+        .select('*')
+        .or(
+          `created_by_player_id.eq.${player.id},opponent_player_id.eq.${player.id}`,
+        )
+        .order('match_date', { ascending: false })
+        .limit(5)
+
+      if (isMounted) {
+        setRecentMatches(data || [])
+      }
+    }
+
+    loadMatches()
+
+    return () => {
+      isMounted = false
+    }
+  }, [player?.id])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadStreaks = async () => {
+      if (!player?.id) {
+        setStreakRows([])
+        return
+      }
+
+      const { data } = await supabase
+        .from('streaks')
+        .select('streak_type, current_count, max_record, status')
+        .eq('player_id', String(player.id))
+
+      if (isMounted) {
+        setStreakRows(data || [])
+      }
+    }
+
+    loadStreaks()
+
+    return () => {
+      isMounted = false
+    }
+  }, [player?.id])
+
+  const resolvedCardColor =
+    cardColor ||
+    profile.playerCardColor ||
+    (profile.clubMembershipStatus === 'approved' ? club?.primary_color : '') ||
+    '#0D0D0F'
+
+  const profileWithClub = useMemo(
+    () => ({
+      ...profile,
+      clubName: club?.name || '',
+      clubPrimaryColor: club?.primary_color || '',
+      playerCardColor: cardColor || profile.playerCardColor,
+      recentMatches,
+      streakRows,
+    }),
+    [cardColor, club?.name, club?.primary_color, profile, recentMatches, streakRows],
+  )
 
   const handleJoined = async (club) => {
     await reloadProfile()
@@ -33,6 +143,113 @@ function ProfileView() {
     })
   }
 
+  const handleSaveCardColor = async () => {
+    if (!player?.id) return
+
+    setIsSavingColor(true)
+    setColorMessage('')
+
+    const { error: colorError } = await supabase
+      .from('players')
+      .update({ player_card_color: resolvedCardColor })
+      .eq('id', player.id)
+
+    if (colorError) {
+      setColorMessage(colorError.message)
+    } else {
+      setColorMessage('Color guardado.')
+      await reloadProfile()
+    }
+
+    setIsSavingColor(false)
+  }
+
+  const handleResetCardColor = async () => {
+    if (!player?.id) return
+
+    setIsSavingColor(true)
+    setColorMessage('')
+
+    const { error: colorError } = await supabase
+      .from('players')
+      .update({ player_card_color: null })
+      .eq('id', player.id)
+
+    if (colorError) {
+      setColorMessage(colorError.message)
+    } else {
+      setColorMessage('Color restablecido.')
+      setCardColor('')
+      await reloadProfile()
+    }
+
+    setIsSavingColor(false)
+  }
+
+  const handleAvatarFile = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file || !user?.id) return
+
+    if (!file.type.startsWith('image/')) {
+      setColorMessage('Selecciona un archivo de imagen.')
+      return
+    }
+
+    setIsUploadingAvatar(true)
+    setColorMessage('')
+
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const path = `${user.id}/avatar-${Date.now()}.${extension}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('profile-avatars')
+      .upload(path, file, {
+        cacheControl: '3600',
+        contentType: file.type,
+        upsert: true,
+      })
+
+    if (uploadError) {
+      setColorMessage(uploadError.message)
+      setIsUploadingAvatar(false)
+      return
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('profile-avatars')
+      .getPublicUrl(path)
+
+    const avatarUrl = publicUrlData.publicUrl
+
+    if (player?.id) {
+      const { error: avatarError } = await supabase
+        .from('players')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', player.id)
+
+      if (avatarError) {
+        setColorMessage(avatarError.message)
+        setIsUploadingAvatar(false)
+        return
+      }
+    }
+
+    const { error: metadataError } = await supabase.auth.updateUser({
+      data: { avatar_url: avatarUrl },
+    })
+
+    if (metadataError) {
+      setColorMessage(metadataError.message)
+    } else {
+      setColorMessage('Foto de perfil actualizada.')
+      await reloadProfile()
+    }
+
+    setIsUploadingAvatar(false)
+  }
+
   return (
     <section className="mx-auto grid w-full max-w-5xl gap-6">
       <JoinClubModal
@@ -40,6 +257,13 @@ function ProfileView() {
         player={player}
         onClose={() => setIsJoinOpen(false)}
         onJoined={handleJoined}
+      />
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarFile}
       />
 
       <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
@@ -56,54 +280,96 @@ function ProfileView() {
         </p>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,560px)_1fr] lg:items-start">
-        <div className="grid gap-3">
-          {error ? (
-            <p className="border border-open-light bg-open-surface px-4 py-3 text-sm text-open-muted">
-              {error}
-            </p>
-          ) : null}
-          <PlayerCard profile={profile} />
-          {isLoading ? (
-            <p className="text-sm text-open-muted">Cargando perfil...</p>
-          ) : null}
-          {!profile.clubId ? (
-            <button
-              type="button"
-              onClick={() => setIsJoinOpen(true)}
-              className="h-12 border border-open-light bg-open-surface px-5 text-sm font-semibold text-open-ink transition hover:border-open-primary"
-            >
-              Unirme a un club
-            </button>
+      <div className="grid gap-3">
+        {error ? (
+          <p className="border border-open-light bg-open-surface px-4 py-3 text-sm text-open-muted">
+            {error}
+          </p>
+        ) : null}
+        <PlayerCard
+          profile={profileWithClub}
+          canEditAvatar
+          isAvatarUploading={isUploadingAvatar}
+          onAvatarClick={() => avatarInputRef.current?.click()}
+        />
+        {isLoading ? (
+          <p className="text-sm text-open-muted">Cargando perfil...</p>
+        ) : null}
+        {profile.clubMembershipStatus === 'pending' ? (
+          <p className="border border-open-light bg-open-surface px-4 py-3 text-sm text-open-muted">
+            Tu solicitud para pertenecer a {club?.name || 'este club'} esta
+            pendiente de aprobacion.
+          </p>
+        ) : null}
+        {profile.clubMembershipStatus === 'approved' && club?.name ? (
+          <p className="border border-open-light bg-open-surface px-4 py-3 text-sm text-open-muted">
+            Perteneces a <strong className="text-open-ink">{club.name}</strong>.
+          </p>
+        ) : null}
+        {profile.clubMembershipStatus === 'rejected' ? (
+          <p className="border border-open-light bg-open-surface px-4 py-3 text-sm text-open-muted">
+            Tu solicitud fue rechazada. Puedes elegir otro club.
+          </p>
+        ) : null}
+        {!profile.clubId || profile.clubMembershipStatus === 'rejected' ? (
+          <button
+            type="button"
+            onClick={() => setIsJoinOpen(true)}
+            className="h-12 border border-open-light bg-open-surface px-5 text-sm font-semibold text-open-ink transition hover:border-open-primary"
+          >
+            Unirme a un club
+          </button>
+        ) : null}
+      </div>
+
+      <section className="grid gap-4 border border-open-light bg-open-surface p-5 md:grid-cols-[1fr_auto] md:items-end">
+        <div>
+          <p className="text-sm font-semibold text-open-muted">
+            Color de Player Card
+          </p>
+          <div className="mt-3 flex h-12 max-w-md items-center gap-3 border border-open-light bg-open-bg px-4">
+            <Palette size={18} strokeWidth={1.8} className="text-open-muted" />
+            <input
+              type="color"
+              value={resolvedCardColor}
+              onChange={(event) => setCardColor(event.target.value)}
+              className="h-8 w-12 cursor-pointer border-0 bg-transparent p-0"
+              aria-label="Color de Player Card"
+            />
+            <input
+              type="text"
+              value={resolvedCardColor}
+              onChange={(event) => setCardColor(event.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-sm font-semibold uppercase text-open-ink outline-none"
+            />
+          </div>
+          {colorMessage ? (
+            <p className="mt-2 text-sm text-open-muted">{colorMessage}</p>
           ) : null}
         </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleResetCardColor}
+            disabled={isSavingColor || !player?.id}
+            className="inline-flex h-11 items-center gap-2 border border-open-light bg-open-surface px-4 text-sm font-semibold text-open-ink transition hover:border-open-primary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RotateCcw size={16} strokeWidth={1.8} />
+            Usar default
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveCardColor}
+            disabled={isSavingColor || !player?.id}
+            className="inline-flex h-11 items-center gap-2 bg-open-primary px-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-open-muted"
+          >
+            <Save size={16} strokeWidth={1.8} />
+            {isSavingColor ? 'Guardando...' : 'Guardar color'}
+          </button>
+        </div>
+      </section>
 
-        <section className="grid gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-open-muted">
-            Logros recientes
-          </h2>
-          {badges.map((badge) => {
-            const Icon = badge.icon
-
-            return (
-              <article
-                key={badge.label}
-                className="flex items-center gap-4 border border-open-light bg-open-surface p-4"
-              >
-                <div className="grid h-11 w-11 shrink-0 place-items-center border border-open-light bg-open-bg">
-                  <Icon size={19} strokeWidth={1.8} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-open-ink">
-                    {badge.label}
-                  </h3>
-                  <p className="mt-1 text-sm text-open-muted">{badge.detail}</p>
-                </div>
-              </article>
-            )
-          })}
-        </section>
-      </div>
+      <PlayerProfileDetails profile={profileWithClub} />
     </section>
   )
 }

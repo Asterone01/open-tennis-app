@@ -61,7 +61,7 @@ function LevelUpOverlay({ isOpen, onClose }) {
               exit={{ y: -12, opacity: 0 }}
               transition={{ delay: 0.42, duration: 0.55, ease: 'easeOut' }}
             >
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-open-muted">
+              <p className="open-logo text-sm text-open-muted">
                 OPEN
               </p>
               <h2 className="mt-4 font-display text-5xl italic text-open-primary md:text-7xl">

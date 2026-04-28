@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { ensurePlayerProfile } from './profileConnections'
 
 function usePlayerProfile() {
   const [user, setUser] = useState(null)
@@ -43,8 +44,21 @@ function usePlayerProfile() {
 
     if (playerError) {
       setError(playerError.message)
-    } else {
+    } else if (playerData) {
       setPlayer(playerData)
+    } else {
+      const { data: ensuredPlayer, error: ensureError } =
+        await ensurePlayerProfile(currentUser)
+
+      if (!isMounted()) {
+        return
+      }
+
+      if (ensureError) {
+        setError(ensureError.message)
+      } else {
+        setPlayer(ensuredPlayer)
+      }
     }
 
     setIsLoading(false)
@@ -69,6 +83,7 @@ function usePlayerProfile() {
     error,
     reloadProfile: () => loadProfile(),
     profile: {
+      playerId: player?.id || '',
       fullName:
         player?.full_name ||
         user?.user_metadata?.full_name ||
@@ -76,21 +91,52 @@ function usePlayerProfile() {
         user?.email ||
         'Jugador OPEN',
       email: player?.email || user?.email || '',
+      phone: player?.phone || user?.user_metadata?.phone || '',
+      avatarUrl: player?.avatar_url || user?.user_metadata?.avatar_url || '',
+      playerCardColor:
+        player?.player_card_color ||
+        user?.user_metadata?.player_card_color ||
+        '',
       level: player?.level || user?.user_metadata?.level || 1,
       xp: player?.xp || user?.user_metadata?.xp || 0,
       currentStreak:
         player?.current_streak || user?.user_metadata?.current_streak || 0,
       yearsPlaying:
         player?.years_playing || user?.user_metadata?.years_playing || 0,
+      ageGroup: player?.age_group || user?.user_metadata?.age_group || '',
+      suggestedCategory:
+        player?.suggested_category ||
+        user?.user_metadata?.suggested_category ||
+        '',
+      currentCategory:
+        player?.current_category || user?.user_metadata?.current_category || '',
+      clubMembershipStatus:
+        player?.club_membership_status ||
+        user?.user_metadata?.club_membership_status ||
+        'unassigned',
+      onboardingCompleted:
+        player?.onboarding_completed ||
+        user?.user_metadata?.onboarding_completed ||
+        false,
       role: player?.role || user?.user_metadata?.role || 'player',
       clubId: player?.club_id || user?.user_metadata?.club_id || null,
       isCoach: player?.is_coach || user?.user_metadata?.role === 'coach',
       stats: {
-        stat_ataque: player?.stat_ataque ?? 50,
-        stat_defensa: player?.stat_defensa ?? 50,
+        stat_derecha: player?.stat_derecha ?? player?.stat_ataque ?? 50,
+        stat_reves: player?.stat_reves ?? player?.stat_defensa ?? 50,
         stat_saque: player?.stat_saque ?? 50,
-        stat_fisico: player?.stat_fisico ?? 50,
-        stat_mentalidad: player?.stat_mentalidad ?? 50,
+        stat_volea: player?.stat_volea ?? player?.stat_mentalidad ?? 50,
+        stat_movilidad: player?.stat_movilidad ?? player?.stat_fisico ?? 50,
+        stat_slice: player?.stat_slice ?? 50,
+      },
+      matchStats: {
+        aces: player?.match_aces || 0,
+        doubleFaults: player?.match_double_faults || 0,
+        winners: player?.match_winners || 0,
+        unforcedErrors: player?.match_unforced_errors || 0,
+        forcedErrors: player?.match_forced_errors || 0,
+        matchPoints: player?.match_points || 0,
+        pointsAgainst: player?.match_points_against || 0,
       },
     },
   }

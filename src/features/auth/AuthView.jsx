@@ -107,7 +107,7 @@ function AuthView() {
         >
           <div className="flex min-h-[520px] flex-col justify-between border-open-border p-8 md:border-r md:p-12">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-open-muted">
+              <p className="open-logo text-sm text-open-muted">
                 OPEN
               </p>
               <h1 className="mt-8 max-w-xl text-4xl font-semibold leading-tight text-open-ink md:text-6xl">

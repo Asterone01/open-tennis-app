@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Unlink, UserRound } from 'lucide-react'
+import { Link as RouterLink } from 'react-router-dom'
+import { Eye, Link as LinkIcon, Unlink, UserRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import JoinClubModal from '../profile/JoinClubModal'
+import { ensurePlayerProfile } from '../profile/profileConnections'
+
+const playerSelect =
+  'id, full_name, email, level, xp, club_id, is_coach, club_membership_status, current_category, suggested_category, age_group'
 
 function ClubPlayersManager({ mode = 'manager' }) {
   const [club, setClub] = useState(null)
@@ -35,15 +40,34 @@ function ClubPlayersManager({ mode = 'manager' }) {
       let clubError = null
 
       if (mode === 'coach') {
-        const { data: coachProfile, error: coachError } = await supabase
+        const { data: coachProfileData, error: coachError } = await supabase
           .from('players')
-          .select('id, user_id, email, full_name, club_id, is_coach')
+          .select(
+            'id, user_id, email, full_name, role, club_id, is_coach, club_membership_status',
+          )
           .eq('user_id', userData.user.id)
           .maybeSingle()
 
+        let coachProfile = coachProfileData
+
         if (coachError) {
           clubError = coachError
-        } else {
+        } else if (!coachProfile) {
+          const { data: ensuredProfile, error: ensureError } =
+            await ensurePlayerProfile(userData.user, {
+              role: 'coach',
+              is_coach: true,
+              force: true,
+            })
+
+          if (ensureError) {
+            clubError = ensureError
+          } else {
+            coachProfile = ensuredProfile
+          }
+        }
+
+        if (!clubError) {
           setCurrentPlayer(coachProfile || null)
         }
 
@@ -83,10 +107,16 @@ function ClubPlayersManager({ mode = 'manager' }) {
 
       setClub(clubData)
 
-      const { data: playersData, error: playersError } = await supabase
+      let playersQuery = supabase
         .from('players')
-        .select('id, full_name, email, level, xp, club_id, is_coach')
+        .select(playerSelect)
         .order('full_name', { ascending: true })
+
+      if (mode === 'coach') {
+        playersQuery = playersQuery.or(`club_id.is.null,club_id.eq.${clubData.id}`)
+      }
+
+      const { data: playersData, error: playersError } = await playersQuery
 
       if (!isMounted) return
 
@@ -116,7 +146,9 @@ function ClubPlayersManager({ mode = 'manager' }) {
     if (userData.user) {
       const { data } = await supabase
         .from('players')
-        .select('id, user_id, email, full_name, club_id, is_coach')
+        .select(
+          'id, user_id, email, full_name, club_id, is_coach, club_membership_status',
+        )
         .eq('user_id', userData.user.id)
         .maybeSingle()
 
@@ -125,7 +157,8 @@ function ClubPlayersManager({ mode = 'manager' }) {
 
     const { data: playersData, error: playersError } = await supabase
       .from('players')
-      .select('id, full_name, email, level, xp, club_id, is_coach')
+      .select(playerSelect)
+      .or(`club_id.is.null,club_id.eq.${joinedClub.id}`)
       .order('full_name', { ascending: true })
 
     if (playersError) {
@@ -138,16 +171,21 @@ function ClubPlayersManager({ mode = 'manager' }) {
   const visiblePlayers = useMemo(() => {
     if (!club) return []
 
+    const managedPlayers =
+      mode === 'coach'
+        ? players.filter((player) => !player.is_coach)
+        : players
+
     if (filter === 'club') {
-      return players.filter((player) => player.club_id === club.id)
+      return managedPlayers.filter((player) => player.club_id === club.id)
     }
 
     if (filter === 'available') {
-      return players.filter((player) => !player.club_id)
+      return managedPlayers.filter((player) => !player.club_id)
     }
 
-    return players
-  }, [club, filter, players])
+    return managedPlayers
+  }, [club, filter, mode, players])
 
   const linkPlayer = async (player) => {
     if (!club) return
@@ -158,9 +196,9 @@ function ClubPlayersManager({ mode = 'manager' }) {
 
     const { data, error: updateError } = await supabase
       .from('players')
-      .update({ club_id: club.id })
+      .update({ club_id: club.id, club_membership_status: 'approved' })
       .eq('id', player.id)
-      .select('id, full_name, email, level, xp, club_id, is_coach')
+      .select(playerSelect)
       .single()
 
     if (updateError) {
@@ -182,9 +220,9 @@ function ClubPlayersManager({ mode = 'manager' }) {
 
     const { data, error: updateError } = await supabase
       .from('players')
-      .update({ club_id: null })
+      .update({ club_id: null, club_membership_status: 'unassigned' })
       .eq('id', player.id)
-      .select('id, full_name, email, level, xp, club_id, is_coach')
+      .select(playerSelect)
       .single()
 
     if (updateError) {
@@ -263,6 +301,13 @@ function ClubPlayersManager({ mode = 'manager' }) {
         {visiblePlayers.map((player) => {
           const belongsToClub = player.club_id === club?.id
           const belongsElsewhere = player.club_id && !belongsToClub
+          const category =
+            player.current_category || player.suggested_category || 'pendiente'
+          const membership = belongsToClub
+            ? formatMembership(player.club_membership_status, true)
+            : formatMembership(player.club_membership_status)
+          const isPendingApproval =
+            belongsToClub && player.club_membership_status === 'pending'
 
           return (
             <article
@@ -278,33 +323,59 @@ function ClubPlayersManager({ mode = 'manager' }) {
                     {player.full_name || 'Jugador OPEN'}
                   </h3>
                   <p className="mt-1 text-xs text-open-muted">
-                    {player.email} · LVL {player.level || 1} ·{' '}
+                    {player.email} - LVL {player.level || 1} -{' '}
                     {(player.xp || 0).toLocaleString()} XP
+                  </p>
+                  <p className="mt-1 text-xs text-open-muted">
+                    Cat. {category} - {membership}
                   </p>
                 </div>
               </div>
 
-              {belongsToClub ? (
-                <button
-                  type="button"
-                  onClick={() => unlinkPlayer(player)}
-                  disabled={updatingId === player.id}
-                  className="inline-flex h-10 items-center justify-center gap-2 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink transition hover:border-open-primary disabled:opacity-50"
+              <div className="flex flex-wrap gap-2 md:justify-end">
+                <RouterLink
+                  to={`/players/${player.id}`}
+                  className="inline-flex h-10 items-center justify-center gap-2 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink transition hover:border-open-primary"
                 >
-                  <Unlink size={16} strokeWidth={1.8} />
-                  Quitar
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => linkPlayer(player)}
-                  disabled={updatingId === player.id || belongsElsewhere}
-                  className="inline-flex h-10 items-center justify-center gap-2 bg-black px-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-open-muted"
-                >
-                  <Link size={16} strokeWidth={1.8} />
-                  {belongsElsewhere ? 'En otro club' : 'Agregar'}
-                </button>
-              )}
+                  <Eye size={16} strokeWidth={1.8} />
+                  Ver perfil
+                </RouterLink>
+
+                {belongsToClub ? (
+                  <>
+                    {isPendingApproval ? (
+                      <button
+                        type="button"
+                        onClick={() => linkPlayer(player)}
+                        disabled={updatingId === player.id}
+                        className="inline-flex h-10 items-center justify-center gap-2 bg-black px-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-open-muted"
+                      >
+                        <LinkIcon size={16} strokeWidth={1.8} />
+                        Aprobar
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => unlinkPlayer(player)}
+                      disabled={updatingId === player.id}
+                      className="inline-flex h-10 items-center justify-center gap-2 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink transition hover:border-open-primary disabled:opacity-50"
+                    >
+                      <Unlink size={16} strokeWidth={1.8} />
+                      Quitar
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => linkPlayer(player)}
+                    disabled={updatingId === player.id || belongsElsewhere}
+                    className="inline-flex h-10 items-center justify-center gap-2 bg-black px-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-open-muted"
+                  >
+                    <LinkIcon size={16} strokeWidth={1.8} />
+                    {belongsElsewhere ? 'En otro club' : 'Agregar'}
+                  </button>
+                )}
+              </div>
             </article>
           )
         })}
@@ -321,6 +392,21 @@ function ClubPlayersManager({ mode = 'manager' }) {
       ) : null}
     </section>
   )
+}
+
+function formatMembership(value, belongsToClub = false) {
+  const labels = {
+    unassigned: 'Sin club',
+    pending: 'Pendiente',
+    approved: 'Aprobada',
+    rejected: 'Rechazada',
+  }
+
+  if (belongsToClub && (!value || value === 'unassigned')) {
+    return 'Aprobada'
+  }
+
+  return labels[value] || 'Sin club'
 }
 
 export default ClubPlayersManager

@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['Archivo Black', 'Impact', 'sans-serif'],
+        display: ['Special Gothic Expanded One', 'Impact', 'sans-serif'],
       },
       colors: {
         open: {

@@ -2,14 +2,16 @@ import { useState } from 'react'
 import { CalendarDays, Flame, Gauge, Swords } from 'lucide-react'
 import DailyQuests from '../gamification/DailyQuests'
 import LevelUpOverlay from '../gamification/LevelUpOverlay'
+import XPHistoryPanel from '../gamification/XPHistoryPanel'
+import { calculateLevelFromXp, getNextLevelXp } from '../gamification/xpLedger'
 import usePlayerProfile from '../profile/usePlayerProfile'
 
 function HomeDashboard() {
   const [showLevelUp, setShowLevelUp] = useState(false)
-  const { profile } = usePlayerProfile()
+  const { player, profile } = usePlayerProfile()
   const xp = profile.xp || 0
-  const level = profile.level || 1
-  const nextLevelXp = level * 300
+  const level = calculateLevelFromXp(xp)
+  const nextLevelXp = getNextLevelXp(level)
   const progress = Math.min(Math.round((xp / nextLevelXp) * 100), 100)
   const remainingXp = Math.max(nextLevelXp - xp, 0)
 
@@ -29,7 +31,8 @@ function HomeDashboard() {
             Tu actividad OPEN
           </h1>
           <p className="mt-2 text-sm font-semibold text-open-muted">
-            {profile.fullName}
+            {profile.fullName} - Cat.{' '}
+            {profile.currentCategory || profile.suggestedCategory || 'pendiente'}
           </p>
         </div>
         <p className="max-w-md text-sm leading-6 text-open-muted">
@@ -136,7 +139,10 @@ function HomeDashboard() {
         </div>
       </article>
 
-      <DailyQuests />
+      <div className="grid gap-5 lg:grid-cols-[1fr_0.95fr]">
+        <DailyQuests />
+        <XPHistoryPanel player={player} />
+      </div>
     </section>
   )
 }

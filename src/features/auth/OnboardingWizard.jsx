@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { supabase } from '../../lib/supabase'
+import { ensurePlayerProfile } from '../profile/profileConnections'
 
 const roles = [
   {
@@ -21,6 +22,21 @@ const roles = [
   },
 ]
 
+const ageGroups = [
+  { id: 'junior', title: 'Junior', detail: '6 a 12 anos' },
+  { id: 'juvenil', title: 'Juvenil', detail: '13 a 17 anos' },
+  { id: 'adulto', title: 'Adulto', detail: '18 a 50 anos' },
+  { id: 'senior', title: 'Senior', detail: '50+ anos' },
+]
+
+const categories = [
+  { id: 'D', title: 'D', detail: 'Iniciacion' },
+  { id: 'C', title: 'C', detail: 'Basico' },
+  { id: 'B', title: 'B', detail: 'Intermedio' },
+  { id: 'A', title: 'A', detail: 'Avanzado' },
+  { id: 'Pro', title: 'Pro', detail: 'Elite' },
+]
+
 const slide = {
   initial: { x: 32, opacity: 0 },
   animate: { x: 0, opacity: 1 },
@@ -33,15 +49,58 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
     email: '',
     password: '',
     fullName: '',
+    phone: '',
+    avatarUrl: '',
     sex: '',
     birthDate: '',
+    ageGroup: '',
+    suggestedCategory: '',
     yearsPlaying: '',
     coachingExperience: '',
     clubName: '',
+    clubId: '',
   })
+  const [clubs, setClubs] = useState([])
+  const [clubQuery, setClubQuery] = useState('')
+  const [isLoadingClubs, setIsLoadingClubs] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const totalSteps = selectedRole === 'manager' ? 3 : 6
+
+  useEffect(() => {
+    if (step !== 6 || selectedRole === 'manager') {
+      return
+    }
+
+    let isMounted = true
+
+    const loadClubs = async () => {
+      setIsLoadingClubs(true)
+      setError('')
+
+      const { data, error: clubsError } = await supabase
+        .from('clubs')
+        .select('id, name, logo_url')
+        .order('name', { ascending: true })
+
+      if (!isMounted) return
+
+      if (clubsError) {
+        setError(clubsError.message)
+      } else {
+        setClubs(data || [])
+      }
+
+      setIsLoadingClubs(false)
+    }
+
+    loadClubs()
+
+    return () => {
+      isMounted = false
+    }
+  }, [selectedRole, step])
 
   const updateField = (field, value) => {
     setFormData((current) => ({ ...current, [field]: value }))
@@ -70,11 +129,41 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
     setError('')
 
     if (formData.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.')
+      setError('La contrasena debe tener al menos 6 caracteres.')
       return
     }
 
     setStep(3)
+  }
+
+  const handleProfileSubmit = (event) => {
+    event.preventDefault()
+    setError('')
+    setStep(4)
+  }
+
+  const handleAgeGroupSubmit = (event) => {
+    event.preventDefault()
+    setError('')
+
+    if (!formData.ageGroup) {
+      setError('Selecciona tu grupo de edad.')
+      return
+    }
+
+    setStep(5)
+  }
+
+  const handleCategorySubmit = (event) => {
+    event.preventDefault()
+    setError('')
+
+    if (!formData.suggestedCategory) {
+      setError('Selecciona tu categoria sugerida.')
+      return
+    }
+
+    setStep(6)
   }
 
   const handleFinalSubmit = async (event) => {
@@ -102,17 +191,25 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
       return
     }
 
-    if (selectedRole === 'player' || selectedRole === 'coach') {
-      const { error: playerError } = await supabase.from('players').insert({
-        id: window.crypto?.randomUUID?.(),
-        user_id: data.user?.id,
+    if (data.session && (selectedRole === 'player' || selectedRole === 'coach')) {
+      const { error: playerError } = await ensurePlayerProfile(data.user, {
         email: formData.email,
         full_name: formData.fullName,
-        sex: formData.sex,
+        phone: formData.phone || null,
+        avatar_url: formData.avatarUrl || null,
+        sex: formData.sex || null,
         birth_date: formData.birthDate || null,
+        age_group: formData.ageGroup || null,
+        suggested_category: formData.suggestedCategory || null,
+        current_category: null,
         years_playing: Number(formData.yearsPlaying || 0),
         role: selectedRole,
         is_coach: selectedRole === 'coach',
+        club_id: formData.clubId || null,
+        club_membership_status: formData.clubId ? 'pending' : 'unassigned',
+        onboarding_completed: true,
+        onboarding_completed_at: new Date().toISOString(),
+        force: true,
       })
 
       if (playerError) {
@@ -122,7 +219,7 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
       }
     }
 
-    if (selectedRole === 'manager' && data.user?.id) {
+    if (data.session && selectedRole === 'manager' && data.user?.id) {
       await supabase.from('clubs').insert({
         manager_id: data.user.id,
         name: formData.clubName,
@@ -132,6 +229,10 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
     setMessage('Cuenta creada. Revisa tu correo para confirmar el acceso.')
     setIsSubmitting(false)
   }
+
+  const filteredClubs = clubs.filter((club) =>
+    club.name.toLowerCase().includes(clubQuery.trim().toLowerCase()),
+  )
 
   return (
     <main className="min-h-screen bg-white px-6 text-open-ink">
@@ -147,18 +248,16 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
               <ArrowLeft size={18} strokeWidth={1.8} />
             </button>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-open-muted">
-              Paso {step} de 3
+              Paso {Math.min(step, totalSteps)} de {totalSteps}
             </p>
           </div>
 
           {step === 1 ? (
             <motion.div key="role" {...slide} transition={{ duration: 0.32 }}>
               <div className="text-center">
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-open-muted">
-                  OPEN
-                </p>
+                <p className="open-logo text-sm text-open-muted">OPEN</p>
                 <h1 className="mt-4 font-display text-3xl italic text-open-ink md:text-5xl">
-                  ¿CÓMO QUIERES USAR OPEN?
+                  COMO QUIERES USAR OPEN?
                 </h1>
                 <p className="mt-3 text-sm text-open-muted">
                   Elige tu rol y personaliza tu experiencia.
@@ -212,12 +311,12 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
                   placeholder="nombre@open.app"
                 />
                 <PillInput
-                  label="Contraseña"
+                  label="Contrasena"
                   type="password"
                   value={formData.password}
                   autoComplete="new-password"
                   onChange={(value) => updateField('password', value)}
-                  placeholder="••••••••"
+                  placeholder="********"
                 />
               </div>
               <Feedback error={error} message={message} />
@@ -230,7 +329,9 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
               key="profile"
               {...slide}
               transition={{ duration: 0.32 }}
-              onSubmit={handleFinalSubmit}
+              onSubmit={
+                selectedRole === 'manager' ? handleFinalSubmit : handleProfileSubmit
+              }
               className="mx-auto max-w-xl"
             >
               <StepHeader
@@ -244,8 +345,36 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
                   value={formData.fullName}
                   autoComplete="name"
                   onChange={(value) => updateField('fullName', value)}
-                  placeholder="Andrés Rivera"
+                  placeholder="Andres Rivera"
                 />
+
+                {selectedRole !== 'manager' ? (
+                  <>
+                    <PillInput
+                      label="Telefono"
+                      type="tel"
+                      value={formData.phone}
+                      autoComplete="tel"
+                      required={false}
+                      onChange={(value) => updateField('phone', value)}
+                      placeholder="+52 55 0000 0000"
+                    />
+                    <PillInput
+                      label="Foto de perfil URL"
+                      type="url"
+                      value={formData.avatarUrl}
+                      required={false}
+                      onChange={(value) => updateField('avatarUrl', value)}
+                      placeholder="https://..."
+                    />
+                    <PillInput
+                      label="Fecha de nacimiento"
+                      type="date"
+                      value={formData.birthDate}
+                      onChange={(value) => updateField('birthDate', value)}
+                    />
+                  </>
+                ) : null}
 
                 {selectedRole === 'player' ? (
                   <>
@@ -254,20 +383,14 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
                       value={formData.sex}
                       onChange={(value) => updateField('sex', value)}
                       options={[
-                        { value: '', label: 'Selecciona una opción' },
+                        { value: '', label: 'Selecciona una opcion' },
                         { value: 'female', label: 'Femenino' },
                         { value: 'male', label: 'Masculino' },
                         { value: 'other', label: 'Otro' },
                       ]}
                     />
                     <PillInput
-                      label="Fecha de nacimiento"
-                      type="date"
-                      value={formData.birthDate}
-                      onChange={(value) => updateField('birthDate', value)}
-                    />
-                    <PillInput
-                      label="Años jugando tenis"
+                      label="Anos jugando tenis"
                       type="number"
                       min="0"
                       value={formData.yearsPlaying}
@@ -279,7 +402,7 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
 
                 {selectedRole === 'coach' ? (
                   <PillInput
-                    label="Años de experiencia entrenando"
+                    label="Anos de experiencia entrenando"
                     type="number"
                     min="0"
                     value={formData.coachingExperience}
@@ -302,6 +425,112 @@ function OnboardingWizard({ initialRole = '', onBackToLogin }) {
               </div>
               <Feedback error={error} message={message} />
               <PrimaryButton disabled={isSubmitting}>
+                {selectedRole === 'manager'
+                  ? isSubmitting
+                    ? 'Creando cuenta...'
+                    : 'Crear cuenta'
+                  : 'Continuar'}
+              </PrimaryButton>
+            </motion.form>
+          ) : null}
+
+          {step === 4 ? (
+            <motion.form
+              key="age-group"
+              {...slide}
+              transition={{ duration: 0.32 }}
+              onSubmit={handleAgeGroupSubmit}
+              className="mx-auto max-w-xl"
+            >
+              <StepHeader
+                title="Grupo"
+                subtitle="Esto separa rankings y rivales por etapa deportiva."
+              />
+              <ChoiceGrid
+                items={ageGroups}
+                value={formData.ageGroup}
+                onChange={(value) => updateField('ageGroup', value)}
+              />
+              <Feedback error={error} message={message} />
+              <PrimaryButton>Continuar</PrimaryButton>
+            </motion.form>
+          ) : null}
+
+          {step === 5 ? (
+            <motion.form
+              key="category"
+              {...slide}
+              transition={{ duration: 0.32 }}
+              onSubmit={handleCategorySubmit}
+              className="mx-auto max-w-xl"
+            >
+              <StepHeader
+                title="Categoria"
+                subtitle="Tu coach la confirmara despues de evaluarte."
+              />
+              <ChoiceGrid
+                items={categories}
+                value={formData.suggestedCategory}
+                onChange={(value) => updateField('suggestedCategory', value)}
+              />
+              <Feedback error={error} message={message} />
+              <PrimaryButton>Continuar</PrimaryButton>
+            </motion.form>
+          ) : null}
+
+          {step === 6 ? (
+            <motion.form
+              key="club"
+              {...slide}
+              transition={{ duration: 0.32 }}
+              onSubmit={handleFinalSubmit}
+              className="mx-auto max-w-xl"
+            >
+              <StepHeader
+                title="Club"
+                subtitle="Solicita acceso a tu club o termina sin club por ahora."
+              />
+              <div className="mt-8 grid gap-4">
+                <PillInput
+                  label="Buscar club"
+                  type="search"
+                  value={clubQuery}
+                  required={false}
+                  onChange={setClubQuery}
+                  placeholder="Nombre del club"
+                />
+                <div className="grid max-h-72 gap-2 overflow-auto">
+                  {filteredClubs.map((club) => (
+                    <button
+                      key={club.id}
+                      type="button"
+                      onClick={() => updateField('clubId', club.id)}
+                      className={[
+                        'flex items-center justify-between rounded-2xl border px-5 py-4 text-left transition',
+                        formData.clubId === club.id
+                          ? 'border-open-ink bg-open-ink text-white'
+                          : 'border-open-light bg-open-surface text-open-ink hover:border-open-ink',
+                      ].join(' ')}
+                    >
+                      <span className="text-sm font-semibold">{club.name}</span>
+                      <span className="text-xs uppercase tracking-[0.14em] opacity-70">
+                        {formData.clubId === club.id ? 'Pendiente' : 'Elegir'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {isLoadingClubs ? (
+                  <p className="text-sm text-open-muted">Cargando clubes...</p>
+                ) : null}
+                {!isLoadingClubs && clubs.length === 0 ? (
+                  <p className="rounded-2xl border border-open-light bg-open-surface px-4 py-3 text-sm text-open-muted">
+                    Todavia no hay clubes disponibles. Puedes terminar el registro
+                    y unirte despues.
+                  </p>
+                ) : null}
+              </div>
+              <Feedback error={error} message={message} />
+              <PrimaryButton disabled={isSubmitting}>
                 {isSubmitting ? 'Creando cuenta...' : 'Crear cuenta'}
               </PrimaryButton>
             </motion.form>
@@ -318,15 +547,32 @@ function buildProfileData(role, data) {
   if (role === 'player') {
     return {
       ...baseData,
+      phone: data.phone,
+      avatar_url: data.avatarUrl,
       sex: data.sex,
       birth_date: data.birthDate,
+      age_group: data.ageGroup,
+      suggested_category: data.suggestedCategory,
+      current_category: null,
       years_playing: Number(data.yearsPlaying || 0),
+      club_id: data.clubId || null,
+      club_membership_status: data.clubId ? 'pending' : 'unassigned',
+      onboarding_completed: true,
     }
   }
 
   if (role === 'coach') {
     return {
       ...baseData,
+      phone: data.phone,
+      avatar_url: data.avatarUrl,
+      birth_date: data.birthDate,
+      age_group: data.ageGroup,
+      suggested_category: data.suggestedCategory,
+      current_category: null,
+      club_id: data.clubId || null,
+      club_membership_status: data.clubId ? 'pending' : 'unassigned',
+      onboarding_completed: true,
       coaching_experience: Number(data.coachingExperience || 0),
     }
   }
@@ -340,9 +586,7 @@ function buildProfileData(role, data) {
 function StepHeader({ title, subtitle }) {
   return (
     <div className="text-center">
-      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-open-muted">
-        OPEN
-      </p>
+      <p className="open-logo text-sm text-open-muted">OPEN</p>
       <h1 className="mt-4 font-display text-3xl italic text-open-ink md:text-5xl">
         {title}
       </h1>
@@ -351,13 +595,36 @@ function StepHeader({ title, subtitle }) {
   )
 }
 
-function PillInput({ label, onChange, ...props }) {
+function ChoiceGrid({ items, value, onChange }) {
+  return (
+    <div className="mt-8 grid gap-3 sm:grid-cols-2">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onChange(item.id)}
+          className={[
+            'rounded-2xl border p-5 text-left transition',
+            value === item.id
+              ? 'border-open-ink bg-open-ink text-white'
+              : 'border-open-light bg-open-surface text-open-ink hover:border-open-ink',
+          ].join(' ')}
+        >
+          <span className="block font-display text-xl italic">{item.title}</span>
+          <span className="mt-2 block text-sm opacity-70">{item.detail}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function PillInput({ label, onChange, required = true, ...props }) {
   return (
     <label className="grid gap-2 text-sm font-semibold text-open-ink">
       {label}
       <input
         {...props}
-        required
+        required={required}
         onChange={(event) => onChange(event.target.value)}
         className="h-14 rounded-full border border-open-light bg-open-surface px-5 text-base text-open-ink outline-none transition focus:border-open-ink focus:bg-white"
       />

@@ -4,8 +4,10 @@ import DashboardLayout from './components/layout/DashboardLayout'
 import AuthView from './features/auth/AuthView'
 import PasswordResetView from './features/auth/PasswordResetView'
 import FaceToFaceView from './features/competition/FaceToFaceView'
+import FriendlyMatchesView from './features/competition/FriendlyMatchesView'
 import RankingView from './features/competition/RankingView'
 import DashboardRouter from './features/dashboard/DashboardRouter'
+import PlayerProfileView from './features/profile/PlayerProfileView'
 import ProfileView from './features/profile/ProfileView'
 import { supabase } from './lib/supabase'
 
@@ -75,10 +77,12 @@ function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardRouter session={session} />} />
+          <Route path="matches" element={<FriendlyMatchesView />} />
           <Route path="ranking" element={<RankingView />} />
           <Route path="h2h" element={<FaceToFaceView />} />
           <Route path="h2h/:opponentId" element={<FaceToFaceView />} />
           <Route path="profile" element={<ProfileView />} />
+          <Route path="players/:playerId" element={<PlayerProfileView />} />
         </Route>
         <Route
           path="*"
