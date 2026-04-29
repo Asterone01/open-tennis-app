@@ -120,6 +120,8 @@ function TournamentsView() {
   const [toast, setToast] = useState('')
   const [activeTournamentView, setActiveTournamentView] = useState('overview')
   const [activeResultMatch, setActiveResultMatch] = useState(null)
+  const [seedingPhase, setSeedingPhase] = useState(false)
+  const [pendingSeedOrder, setPendingSeedOrder] = useState([])
   const [activeRole] = useActiveRole(user?.user_metadata?.role || 'player')
 
   const { clubId: managerClubId } = useManagerClub()
@@ -399,10 +401,27 @@ function TournamentsView() {
     setIsSaving(false)
   }
 
-  const handleGenerateBracket = async (tournament) => {
+  const handleStartSeeding = (tournament) => {
     const tournamentEntries = entries
       .filter((e) => e.tournament_id === tournament.id && e.status !== 'withdrawn')
       .sort((a, b) => (a.seed || 999) - (b.seed || 999))
+    if (tournamentEntries.length < 2) {
+      setError('Necesitas al menos 2 jugadores inscritos para generar el bracket.')
+      return
+    }
+    const withNames = tournamentEntries.map((e) => {
+      const p = players.find((pl) => String(pl.id) === String(e.player_id))
+      return { ...e, playerName: p?.full_name || p?.email || 'Jugador OPEN', level: p?.level || 1, xp: p?.xp || 0 }
+    })
+    setPendingSeedOrder(withNames)
+    setSeedingPhase(true)
+  }
+
+  const handleGenerateBracket = async (orderedEntries, tournament) => {
+    const tournamentEntries = orderedEntries ||
+      entries
+        .filter((e) => e.tournament_id === tournament.id && e.status !== 'withdrawn')
+        .sort((a, b) => (a.seed || 999) - (b.seed || 999))
 
     if (tournamentEntries.length < 2) {
       setError('Necesitas al menos 2 jugadores inscritos para generar el bracket.')
@@ -410,20 +429,51 @@ function TournamentsView() {
     }
 
     setIsSaving(true)
+    setSeedingPhase(false)
     setError('')
     setToast('')
 
-    // Create round 1 matches with simple sequential pairing
-    const round1Matches = []
-    for (let i = 0; i < tournamentEntries.length; i += 2) {
-      round1Matches.push({
-        tournament_id: tournament.id,
-        club_id: tournament.club_id,
-        round_number: 1,
-        match_order: Math.floor(i / 2) + 1,
-        player1_id: String(tournamentEntries[i].player_id),
-        player2_id: tournamentEntries[i + 1] ? String(tournamentEntries[i + 1].player_id) : null,
-        status: tournamentEntries[i + 1] ? 'scheduled' : 'walkover',
+    // Update seeds in DB to reflect confirmed order
+    await Promise.all(
+      tournamentEntries.map((e, i) =>
+        supabase.from('tournament_entries').update({ seed: i + 1 }).eq('id', e.id),
+      ),
+    )
+
+    let round1Matches = []
+
+    if (tournament.modality === 'round_robin') {
+      // Generate all n*(n-1)/2 matches
+      let order = 1
+      for (let i = 0; i < tournamentEntries.length; i++) {
+        for (let j = i + 1; j < tournamentEntries.length; j++) {
+          round1Matches.push({
+            tournament_id: tournament.id,
+            club_id: tournament.club_id,
+            round_number: 1,
+            match_order: order++,
+            player1_id: String(tournamentEntries[i].player_id),
+            player2_id: String(tournamentEntries[j].player_id),
+            status: 'scheduled',
+          })
+        }
+      }
+    } else {
+      // Single elimination with proper seeding
+      const bracketSize = nextPow2(tournamentEntries.length)
+      const pairIndices = seededMatchIndices(bracketSize)
+      round1Matches = pairIndices.map(([iA, iB], idx) => {
+        const p1 = tournamentEntries[iA] || null
+        const p2 = tournamentEntries[iB] || null
+        return {
+          tournament_id: tournament.id,
+          club_id: tournament.club_id,
+          round_number: 1,
+          match_order: idx + 1,
+          player1_id: p1 ? String(p1.player_id) : null,
+          player2_id: p2 ? String(p2.player_id) : null,
+          status: p1 && p2 ? 'scheduled' : 'walkover',
+        }
       })
     }
 
@@ -477,8 +527,11 @@ function TournamentsView() {
       current.map((t) => (t.id === updatedTournament.id ? updatedTournament : t)),
     )
     setMatches((current) => [...current, ...(createdMatches || [])])
-    setActiveTournamentView('bracket')
-    setToast(`Bracket generado con ${round1Matches.length} partidos. Se otorgaron +80 XP a cada jugador.`)
+    setActiveTournamentView(tournament.modality === 'round_robin' ? 'standings' : 'bracket')
+    const modeLabel = tournament.modality === 'round_robin'
+      ? `Round Robin con ${round1Matches.length} partidos generados`
+      : `Bracket generado con ${round1Matches.length} partidos de ronda 1`
+    setToast(`${modeLabel}. +80 XP a cada jugador inscrito.`)
     setIsSaving(false)
   }
 
@@ -776,12 +829,17 @@ function TournamentsView() {
               isSaving={isSaving}
               matches={selectedMatches}
               myEntries={myEntries}
+              pendingSeedOrder={pendingSeedOrder}
               player={player}
               players={players}
+              seedingPhase={seedingPhase && selectedTournament?.id === (pendingSeedOrder[0]?.tournament_id)}
               tournament={selectedTournament}
               onGenerateBracket={handleGenerateBracket}
               onRecordResult={handleRecordResult}
               onSelectResultMatch={setActiveResultMatch}
+              onStartSeeding={handleStartSeeding}
+              onSeedOrderChange={setPendingSeedOrder}
+              onCancelSeeding={() => setSeedingPhase(false)}
               onViewChange={setActiveTournamentView}
             />
           </div>
@@ -1225,12 +1283,17 @@ function BracketPreview({
   isSaving,
   matches,
   myEntries,
+  pendingSeedOrder,
   player,
   players,
+  seedingPhase,
   tournament,
   onGenerateBracket,
   onRecordResult,
   onSelectResultMatch,
+  onStartSeeding,
+  onSeedOrderChange,
+  onCancelSeeding,
   onViewChange,
 }) {
   const playerMap = useMemo(
@@ -1265,16 +1328,27 @@ function BracketPreview({
 
       {tournament ? (
         <div className="grid gap-4">
-          {canManage && tournament.status === 'open' && matches.length === 0 && (
+          {canManage && tournament.status === 'open' && matches.length === 0 && !seedingPhase && (
             <button
               type="button"
-              onClick={() => onGenerateBracket(tournament)}
+              onClick={() => onStartSeeding(tournament)}
               disabled={isSaving || entries.length < 2}
               className="inline-flex h-11 items-center justify-center gap-2 bg-open-primary px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-open-muted"
             >
               <Play size={15} strokeWidth={1.8} />
-              {isSaving ? 'Generando...' : `Cerrar inscripciones y generar bracket (${entries.length} jugadores)`}
+              {`Cerrar inscripciones — ${entries.length} jugadores inscritos`}
             </button>
+          )}
+          {seedingPhase && (
+            <SeedingEditor
+              isSaving={isSaving}
+              players={players}
+              seedOrder={pendingSeedOrder}
+              tournament={tournament}
+              onChange={onSeedOrderChange}
+              onConfirm={(ordered) => onGenerateBracket(ordered, tournament)}
+              onCancel={() => { onSeedOrderChange([]); onCancelSeeding() }}
+            />
           )}
           <TournamentViewTabs activeView={activeView} onViewChange={onViewChange} />
           <TournamentWorkspaceView
@@ -1434,6 +1508,91 @@ function TournamentOverviewView({ entries, matches, standings, tournament }) {
   )
 }
 
+function SeedingEditor({ isSaving, players, seedOrder, tournament, onChange, onConfirm, onCancel }) {
+  const autoSeed = () => {
+    const sorted = [...seedOrder].sort((a, b) => (b.level - a.level) || (b.xp - a.xp))
+    onChange(sorted)
+  }
+
+  const move = (index, dir) => {
+    const next = [...seedOrder]
+    const swapIdx = index + dir
+    if (swapIdx < 0 || swapIdx >= next.length) return
+    ;[next[index], next[swapIdx]] = [next[swapIdx], next[index]]
+    onChange(next)
+  }
+
+  const bracketSize = tournament.modality !== 'round_robin' ? nextPow2(seedOrder.length) : null
+  const byeCount = bracketSize ? bracketSize - seedOrder.length : 0
+
+  return (
+    <div className="grid gap-4 border border-open-primary bg-open-surface p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-open-ink">
+          Confirmación de seeds — {tournament.title}
+        </p>
+        <button type="button" onClick={autoSeed} className="border border-open-light bg-open-bg px-3 py-1.5 text-xs font-semibold text-open-ink transition hover:border-open-primary">
+          Auto-seed por nivel
+        </button>
+      </div>
+
+      {bracketSize && byeCount > 0 && (
+        <p className="text-xs text-open-muted">
+          {bracketSize}-cuadro — {byeCount} BYE{byeCount > 1 ? 's' : ''} asignado{byeCount > 1 ? 's' : ''} a los últimos seeds.
+        </p>
+      )}
+      {tournament.modality === 'round_robin' && (
+        <p className="text-xs text-open-muted">
+          Round Robin: se generarán {(seedOrder.length * (seedOrder.length - 1)) / 2} partidos (todos vs todos).
+        </p>
+      )}
+
+      <div className="grid gap-1">
+        {seedOrder.map((entry, idx) => (
+          <div key={entry.id} className="flex items-center gap-2 border border-open-light bg-open-bg px-3 py-2">
+            <span className="w-6 shrink-0 text-xs font-bold text-open-primary">#{idx + 1}</span>
+            <span className="flex-1 text-sm font-semibold text-open-ink">{entry.playerName}</span>
+            <span className="text-xs text-open-muted">Nv. {entry.level}</span>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => move(idx, -1)}
+                disabled={idx === 0}
+                className="grid h-6 w-6 place-items-center border border-open-light bg-open-surface text-xs text-open-muted hover:border-open-ink disabled:opacity-30"
+              >▲</button>
+              <button
+                type="button"
+                onClick={() => move(idx, 1)}
+                disabled={idx === seedOrder.length - 1}
+                className="grid h-6 w-6 place-items-center border border-open-light bg-open-surface text-xs text-open-muted hover:border-open-ink disabled:opacity-30"
+              >▼</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => onConfirm(seedOrder)}
+          disabled={isSaving}
+          className="inline-flex h-10 flex-1 items-center justify-center gap-2 bg-open-primary text-sm font-semibold text-white disabled:opacity-50"
+        >
+          <Play size={14} strokeWidth={1.8} />
+          {isSaving ? 'Generando…' : 'Confirmar seeds y generar'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="h-10 border border-open-light bg-open-surface px-4 text-sm font-semibold text-open-muted hover:border-open-ink"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function BracketDrawView({
   activeResultMatch,
   bracketPairs,
@@ -1447,13 +1606,35 @@ function BracketDrawView({
 }) {
   if (matches.length) {
     const rounds = groupMatchesByRound(matches)
+    const totalRounds = rounds.length > 0 ? Math.max(...rounds.map(([r]) => r)) : 1
+    const isRoundRobin = rounds.length === 1 && rounds[0][1].length > 4
+
+    if (isRoundRobin) {
+      return (
+        <div className="grid gap-3">
+          {rounds[0][1].map((match) => (
+            <TournamentMatchRow
+              key={match.id}
+              activeResultMatch={activeResultMatch}
+              canManage={canManage}
+              isSaving={isSaving}
+              match={match}
+              playerMap={playerMap}
+              players={players}
+              onRecordResult={onRecordResult}
+              onSelectResultMatch={onSelectResultMatch}
+            />
+          ))}
+        </div>
+      )
+    }
 
     return (
-      <div className="grid gap-4 overflow-x-auto md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)]">
+      <div className="flex gap-3 overflow-x-auto pb-2">
         {rounds.map(([round, roundMatches]) => (
-          <div key={round} className="grid content-start gap-3 border border-open-light bg-open-bg p-4">
+          <div key={round} className="grid min-w-[17rem] content-start gap-3 border border-open-light bg-open-bg p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-open-muted">
-              Ronda {round}
+              {getRoundName(round, totalRounds)}
             </p>
             {roundMatches.map((match) => (
               <TournamentMatchRow
@@ -1499,16 +1680,41 @@ function StandingsView({ standings, tournament }) {
   return (
     <div className="grid gap-3 border border-open-light bg-open-bg p-4">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-open-muted">
-        Tabla de puntos - {formatModality(tournament.modality)}
+        Tabla — {formatModality(tournament.modality)}
       </p>
-      <div className="grid gap-2">
-        {standings.map((row, index) => (
-          <StandingRow key={row.playerId} index={index} row={row} />
-        ))}
-        {standings.length === 0 ? (
-          <EmptyTournamentState text="La tabla aparecera cuando existan inscritos." />
-        ) : null}
-      </div>
+      {standings.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[28rem] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-open-light text-left">
+                <th className="pb-2 pr-3 text-xs font-semibold uppercase tracking-widest text-open-muted">#</th>
+                <th className="pb-2 pr-3 text-xs font-semibold uppercase tracking-widest text-open-muted">Jugador</th>
+                <th className="pb-2 px-2 text-center text-xs font-semibold uppercase tracking-widest text-open-muted">PJ</th>
+                <th className="pb-2 px-2 text-center text-xs font-semibold uppercase tracking-widest text-open-muted">PG</th>
+                <th className="pb-2 px-2 text-center text-xs font-semibold uppercase tracking-widest text-open-muted">PP</th>
+                <th className="pb-2 px-2 text-center text-xs font-semibold uppercase tracking-widest text-open-muted">XP</th>
+                <th className="pb-2 pl-2 text-center text-xs font-semibold uppercase tracking-widest text-open-muted">Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {standings.map((row, index) => (
+                <tr key={row.playerId} className={['border-b border-open-light', index === 0 ? 'bg-open-primary/5' : ''].join(' ')}>
+                  <td className="py-2 pr-3 font-bold text-open-muted">{index + 1}</td>
+                  <td className="py-2 pr-3 font-semibold text-open-ink">{row.name}</td>
+                  <td className="py-2 px-2 text-center text-open-muted">{row.played}</td>
+                  <td className="py-2 px-2 text-center font-semibold text-open-ink">{row.wins}</td>
+                  <td className="py-2 px-2 text-center text-open-muted">{row.losses}</td>
+                  <td className="py-2 px-2 text-center text-open-muted">{row.xp}</td>
+                  <td className="py-2 pl-2 text-center font-bold text-open-ink">{row.points}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {standings.length === 0 ? (
+        <EmptyTournamentState text="La tabla aparecerá cuando existan inscritos." />
+      ) : null}
     </div>
   )
 }
@@ -1705,16 +1911,26 @@ function TournamentMatchRow({
         </span>
       </div>
       <MatchPlayer
-        isWinner={String(match.winner_player_id) === String(match.player1_id)}
+        isWinner={!!match.winner_player_id && String(match.winner_player_id) === String(match.player1_id)}
+        isLoser={!!match.winner_player_id && String(match.winner_player_id) !== String(match.player1_id)}
+        isBye={!match.player1_id}
         name={p1Name}
       />
       <MatchPlayer
-        isWinner={String(match.winner_player_id) === String(match.player2_id)}
+        isWinner={!!match.winner_player_id && String(match.winner_player_id) === String(match.player2_id)}
+        isLoser={!!match.winner_player_id && String(match.winner_player_id) !== String(match.player2_id)}
+        isBye={!match.player2_id}
         name={p2Name}
       />
-      <p className="border-t border-open-light pt-2 text-sm font-semibold text-open-ink">
-        {match.score || 'Pendiente'}
-      </p>
+      {match.score ? (
+        <p className="border border-open-light bg-open-bg px-3 py-1.5 text-sm font-bold text-open-ink">
+          {match.score}
+        </p>
+      ) : (
+        <p className="text-xs text-open-muted">
+          {match.status === 'walkover' ? 'Walkover — pase automático' : 'Pendiente'}
+        </p>
+      )}
 
       {canRecord && !isActive && (
         <button
@@ -1767,14 +1983,20 @@ function TournamentMatchRow({
   )
 }
 
-function MatchPlayer({ isWinner, name }) {
+function MatchPlayer({ isWinner, isLoser, name, isBye }) {
   return (
-    <div className="flex items-center justify-between gap-3 border border-open-light bg-open-surface px-3 py-2">
-      <span className="truncate text-sm font-semibold text-open-ink">{name}</span>
+    <div className={[
+      'flex items-center justify-between gap-3 border px-3 py-2 transition',
+      isBye ? 'border-open-light bg-open-surface opacity-40' :
+      isWinner ? 'border-open-primary bg-open-primary/10' :
+      isLoser ? 'border-open-light bg-open-light/40 opacity-60' :
+      'border-open-light bg-open-surface',
+    ].join(' ')}>
+      <span className={['truncate text-sm font-semibold', isWinner ? 'text-open-ink' : 'text-open-ink'].join(' ')}>
+        {isBye ? 'BYE' : name}
+      </span>
       {isWinner ? (
-        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-open-muted">
-          Ganador
-        </span>
+        <Trophy size={13} strokeWidth={1.8} className="shrink-0 text-open-primary" />
       ) : null}
     </div>
   )
@@ -2160,6 +2382,34 @@ function formatScoring(value) {
 
 function formatRuleKey(value) {
   return String(value).replaceAll('_', ' ')
+}
+
+function nextPow2(n) {
+  let p = 2
+  while (p < n) p *= 2
+  return p
+}
+
+function seededMatchIndices(size) {
+  // Returns array of [indexA, indexB] for round-1 matches.
+  // Seed 1 (index 0) and seed 2 (index 1) end up in opposite halves.
+  if (size === 2) return [[0, 1]]
+  const half = seededMatchIndices(size / 2)
+  const result = []
+  for (const [a, b] of half) {
+    result.push([a, size - 1 - a])
+    result.push([b, size - 1 - b])
+  }
+  return result
+}
+
+function getRoundName(roundNumber, totalRounds) {
+  const fromEnd = totalRounds - roundNumber
+  if (fromEnd === 0) return 'Final'
+  if (fromEnd === 1) return 'Semifinal'
+  if (fromEnd === 2) return 'Cuartos de final'
+  if (fromEnd === 3) return 'Octavos de final'
+  return `Ronda ${roundNumber}`
 }
 
 function calcTotalRounds(playerCount) {
