@@ -11,9 +11,17 @@ import DashboardRouter from './features/dashboard/DashboardRouter'
 import PlayerProfileView from './features/profile/PlayerProfileView'
 import MembershipsView from './features/admin/MembershipsView'
 import CanchasView from './features/admin/CanchasView'
+import CourtReservationsView from './features/courts/CourtReservationsView'
 import ProfileView from './features/profile/ProfileView'
 import TournamentsView from './features/tournaments/TournamentsView'
+import usePlayerProfile from './features/profile/usePlayerProfile'
 import { supabase } from './lib/supabase'
+
+function CanchasRoute() {
+  const { profile } = usePlayerProfile()
+  if (profile.role === 'manager') return <CanchasView />
+  return <CourtReservationsView />
+}
 
 function App() {
   const [session, setSession] = useState(null)
@@ -90,7 +98,7 @@ function App() {
           <Route path="profile" element={<ProfileView />} />
           <Route path="players/:playerId" element={<PlayerProfileView />} />
           <Route path="memberships" element={<MembershipsView />} />
-          <Route path="canchas" element={<CanchasView />} />
+          <Route path="canchas" element={<CanchasRoute />} />
         </Route>
         <Route
           path="*"

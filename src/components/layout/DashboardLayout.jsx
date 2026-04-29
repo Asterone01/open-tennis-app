@@ -24,6 +24,7 @@ const playerNavItems = [
   { label: 'Ranking', to: '/ranking', icon: ListOrdered },
   { label: 'Partidos', to: '/matches', icon: Swords },
   { label: 'Torneos', to: '/tournaments', icon: Trophy },
+  { label: 'Canchas', to: '/canchas', icon: MapPin },
   { label: 'Perfil', to: '/profile', icon: User },
 ]
 
@@ -122,7 +123,7 @@ function DashboardLayout() {
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-open-light bg-open-surface md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-open-light bg-open-surface md:hidden">
         {navItems.map((item) => (
           <NavItem key={item.to} item={item} isMobile />
         ))}
@@ -364,7 +365,7 @@ function NavItem({ item, isMobile = false }) {
       className={({ isActive }) =>
         [
           'flex items-center text-sm font-semibold text-open-muted transition hover:text-open-ink',
-          isMobile ? 'h-16 flex-col justify-center gap-1' : 'h-11 gap-3 px-3',
+          isMobile ? 'h-16 flex-1 flex-col justify-center gap-1' : 'h-11 gap-3 px-3',
           isActive ? 'bg-open-bg text-open-ink' : '',
         ].join(' ')
       }
