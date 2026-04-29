@@ -7,6 +7,7 @@ import {
   ListOrdered,
   LogOut,
   Moon,
+  MapPin,
   Swords,
   Sun,
   Trophy,
@@ -18,11 +19,19 @@ import useColorMode from '../../hooks/useColorMode'
 import useTheme from '../../hooks/useTheme'
 import usePlayerProfile from '../../features/profile/usePlayerProfile'
 
-const navItems = [
+const playerNavItems = [
   { label: 'Inicio', to: '/dashboard', icon: Home },
   { label: 'Ranking', to: '/ranking', icon: ListOrdered },
   { label: 'Partidos', to: '/matches', icon: Swords },
   { label: 'Torneos', to: '/tournaments', icon: Trophy },
+  { label: 'Perfil', to: '/profile', icon: User },
+]
+
+const managerNavItems = [
+  { label: 'Inicio', to: '/dashboard', icon: Home },
+  { label: 'Ranking', to: '/ranking', icon: ListOrdered },
+  { label: 'Torneos', to: '/tournaments', icon: Trophy },
+  { label: 'Canchas', to: '/canchas', icon: MapPin },
   { label: 'Perfil', to: '/profile', icon: User },
 ]
 
@@ -33,6 +42,8 @@ function DashboardLayout() {
   const [activeRole, setActiveRole] = useActiveRole(
     profile.role === 'coach' ? 'coach' : 'player',
   )
+  const isManager = profile.role === 'manager'
+  const navItems = isManager ? managerNavItems : playerNavItems
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -146,45 +157,69 @@ function ColorModeToggle({ colorMode, onToggle }) {
 
 function NotificationsButton() {
   const [notifications, setNotifications] = useState([])
+  const [userId, setUserId] = useState(null)
   const [isOpen, setIsOpen] = useState(false)
   const [error, setError] = useState('')
 
+  const load = async (uid) => {
+    const { data, error: notificationsError } = await supabase
+      .from('notifications')
+      .select('id, title, body, href, read_at, created_at')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    if (notificationsError) {
+      setError('Corre notifications_schema.sql para activar avisos.')
+      setNotifications([])
+    } else {
+      setError('')
+      setNotifications(data || [])
+    }
+  }
+
+  // Initial load + realtime subscription
   useEffect(() => {
-    let isMounted = true
+    let channel
 
-    const loadNotifications = async () => {
+    const init = async () => {
       const { data: userData } = await supabase.auth.getUser()
+      const uid = userData.user?.id
+      if (!uid) return
 
-      if (!userData.user) return
+      setUserId(uid)
+      await load(uid)
 
-      const { data, error: notificationsError } = await supabase
-        .from('notifications')
-        .select('id, title, body, href, read_at, created_at')
-        .eq('user_id', userData.user.id)
-        .order('created_at', { ascending: false })
-        .limit(8)
-
-      if (!isMounted) return
-
-      if (notificationsError) {
-        setError('Corre notifications_schema.sql para activar avisos.')
-        setNotifications([])
-      } else {
-        setError('')
-        setNotifications(data || [])
-      }
+      channel = supabase
+        .channel(`notifications:${uid}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${uid}`,
+          },
+          (payload) => {
+            setNotifications((current) => [payload.new, ...current].slice(0, 20))
+          },
+        )
+        .subscribe()
     }
 
-    loadNotifications()
+    init()
 
     return () => {
-      isMounted = false
+      if (channel) supabase.removeChannel(channel)
     }
   }, [])
 
-  const unreadCount = notifications.filter(
-    (notification) => !notification.read_at,
-  ).length
+  // Reload list every time the panel opens
+  useEffect(() => {
+    if (isOpen && userId) load(userId)
+  }, [isOpen, userId])
+
+  const unreadCount = notifications.filter((n) => !n.read_at).length
 
   const markAsRead = async (notification) => {
     if (!notification.read_at) {
@@ -207,6 +242,21 @@ function NotificationsButton() {
     }
   }
 
+  const markAllAsRead = async () => {
+    if (!userId || unreadCount === 0) return
+
+    const now = new Date().toISOString()
+    await supabase
+      .from('notifications')
+      .update({ read_at: now })
+      .eq('user_id', userId)
+      .is('read_at', null)
+
+    setNotifications((current) =>
+      current.map((item) => ({ ...item, read_at: item.read_at ?? now })),
+    )
+  }
+
   return (
     <div className="relative">
       <button
@@ -218,28 +268,38 @@ function NotificationsButton() {
         <Bell size={18} strokeWidth={1.8} />
         {unreadCount > 0 ? (
           <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center bg-open-primary px-1 text-[10px] font-semibold text-white">
-            {unreadCount}
+            {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         ) : null}
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] border border-open-light bg-open-surface p-3 shadow-2xl shadow-black/10">
-          <div className="flex items-center justify-between border-b border-open-light pb-3">
+        <div className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] border border-open-light bg-open-surface shadow-2xl shadow-black/10">
+          <div className="flex items-center justify-between border-b border-open-light px-3 py-3">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-open-muted">
               Notificaciones
             </p>
-            <span className="text-xs font-semibold text-open-muted">
-              {unreadCount} nuevas
-            </span>
+            {unreadCount > 0 ? (
+              <button
+                type="button"
+                onClick={markAllAsRead}
+                className="text-xs font-semibold text-open-primary transition hover:opacity-70"
+              >
+                Marcar todas como leídas
+              </button>
+            ) : (
+              <span className="text-xs font-semibold text-open-muted">
+                Al día
+              </span>
+            )}
           </div>
 
           {error ? (
-            <p className="py-5 text-sm text-open-muted">{error}</p>
+            <p className="px-3 py-5 text-sm text-open-muted">{error}</p>
           ) : null}
 
           {!error && notifications.length === 0 ? (
-            <p className="py-5 text-sm text-open-muted">Sin notificaciones.</p>
+            <p className="px-3 py-5 text-sm text-open-muted">Sin notificaciones.</p>
           ) : null}
 
           <div className="grid max-h-80 overflow-y-auto">
@@ -248,7 +308,10 @@ function NotificationsButton() {
                 key={notification.id}
                 type="button"
                 onClick={() => markAsRead(notification)}
-                className="grid gap-1 border-b border-open-light py-3 text-left last:border-b-0"
+                className={[
+                  'grid gap-1 border-b border-open-light px-3 py-3 text-left last:border-b-0 transition hover:bg-open-bg',
+                  !notification.read_at ? 'bg-open-bg/60' : '',
+                ].join(' ')}
               >
                 <span className="flex items-center justify-between gap-3">
                   <span className="text-sm font-semibold text-open-ink">
@@ -261,7 +324,7 @@ function NotificationsButton() {
                       className="shrink-0 text-open-muted"
                     />
                   ) : (
-                    <span className="h-2 w-2 shrink-0 bg-open-primary" />
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-open-primary" />
                   )}
                 </span>
                 {notification.body ? (
@@ -269,6 +332,9 @@ function NotificationsButton() {
                     {notification.body}
                   </span>
                 ) : null}
+                <span className="text-[11px] text-open-muted">
+                  {formatRelativeTime(notification.created_at)}
+                </span>
               </button>
             ))}
           </div>
@@ -276,6 +342,17 @@ function NotificationsButton() {
       ) : null}
     </div>
   )
+}
+
+function formatRelativeTime(iso) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Ahora'
+  if (mins < 60) return `Hace ${mins} min`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `Hace ${hrs} h`
+  const days = Math.floor(hrs / 24)
+  return `Hace ${days} día${days > 1 ? 's' : ''}`
 }
 
 function NavItem({ item, isMobile = false }) {

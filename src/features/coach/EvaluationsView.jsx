@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { BookOpen, Eye, Minus, Plus, Save, UserRound, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import ClubPlayersManager from '../admin/ClubPlayersManager'
+import { checkAndUnlockAchievements } from '../gamification/achievementsLedger'
 import { XP_SOURCES, awardPlayerXp } from '../gamification/xpLedger'
 import { ensurePlayerProfile } from '../profile/profileConnections'
 import TrainingSessionsView from './TrainingSessionsView'
@@ -69,6 +70,7 @@ function EvaluationsView() {
   const [baselineStats, setBaselineStats] = useState(createDefaultStats())
   const [evaluationReason, setEvaluationReason] = useState(evaluationReasons[0])
   const [evaluationNotes, setEvaluationNotes] = useState('')
+  const [promotedCategory, setPromotedCategory] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
@@ -244,12 +246,47 @@ function EvaluationsView() {
         stats,
       })
 
+      // Category promotion achievements
+      if (evaluationReason === 'Cambio de categoria' && promotedCategory) {
+        const prevCategory = selectedPlayer.current_category || selectedPlayer.suggested_category
+        if (prevCategory && promotedCategory !== prevCategory) {
+          await supabase
+            .from('players')
+            .update({ current_category: promotedCategory })
+            .eq('id', selectedPlayer.id)
+
+          await checkAndUnlockAchievements({
+            player: { ...data, current_category: promotedCategory },
+            userId: data.user_id,
+            context: {
+              categoryPromoted: { from: prevCategory, to: promotedCategory },
+            },
+          })
+
+          // Mentor achievement for the coach
+          const { data: coachRow } = await supabase
+            .from('players')
+            .select('id, user_id, club_id')
+            .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+            .maybeSingle()
+
+          if (coachRow) {
+            await checkAndUnlockAchievements({
+              player: coachRow,
+              userId: coachRow.user_id,
+              context: { mentorPromotion: true },
+            })
+          }
+        }
+      }
+
       setPlayers((current) =>
         current.map((player) => (player.id === data.id ? data : player)),
       )
       setSelectedPlayer(data)
       setBaselineStats(stats)
       setEvaluationNotes('')
+      setPromotedCategory('')
       if (historyError) {
         setToast(
           `Evaluacion guardada. +50 XP otorgados a ${data.full_name}. El historial se activara al correr el SQL de gamificacion.`,
@@ -425,6 +462,22 @@ function EvaluationsView() {
                   ))}
                 </select>
               </label>
+
+              {evaluationReason === 'Cambio de categoria' && (
+                <label className="grid gap-2 text-sm font-semibold text-open-ink">
+                  Nueva categoria
+                  <select
+                    value={promotedCategory}
+                    onChange={(event) => setPromotedCategory(event.target.value)}
+                    className="h-11 border border-open-light bg-open-bg px-3 text-sm text-open-ink outline-none focus:border-open-primary"
+                  >
+                    <option value="">Selecciona categoria...</option>
+                    {['D', 'C', 'B', 'A', 'Pro'].map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
               <div className="grid gap-3 lg:grid-cols-2">
                 {statFields.map((field) => (

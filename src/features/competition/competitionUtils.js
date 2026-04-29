@@ -1,10 +1,10 @@
 function getRating(player) {
   const skills = [
-    player.stat_derecha ?? player.stat_ataque,
-    player.stat_reves ?? player.stat_defensa,
+    player.stat_derecha,
+    player.stat_reves,
     player.stat_saque,
-    player.stat_volea ?? player.stat_mentalidad,
-    player.stat_movilidad ?? player.stat_fisico,
+    player.stat_volea,
+    player.stat_movilidad,
     player.stat_slice,
   ].filter((value) => Number.isFinite(Number(value)))
 

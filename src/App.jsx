@@ -5,9 +5,12 @@ import AuthView from './features/auth/AuthView'
 import PasswordResetView from './features/auth/PasswordResetView'
 import FaceToFaceView from './features/competition/FaceToFaceView'
 import FriendlyMatchesView from './features/competition/FriendlyMatchesView'
+import LiveJudgeView from './features/competition/LiveJudgeView'
 import RankingView from './features/competition/RankingView'
 import DashboardRouter from './features/dashboard/DashboardRouter'
 import PlayerProfileView from './features/profile/PlayerProfileView'
+import MembershipsView from './features/admin/MembershipsView'
+import CanchasView from './features/admin/CanchasView'
 import ProfileView from './features/profile/ProfileView'
 import TournamentsView from './features/tournaments/TournamentsView'
 import { supabase } from './lib/supabase'
@@ -79,12 +82,15 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardRouter session={session} />} />
           <Route path="matches" element={<FriendlyMatchesView />} />
+          <Route path="live-match/:matchId" element={<LiveJudgeView />} />
           <Route path="tournaments" element={<TournamentsView />} />
           <Route path="ranking" element={<RankingView />} />
           <Route path="h2h" element={<FaceToFaceView />} />
           <Route path="h2h/:opponentId" element={<FaceToFaceView />} />
           <Route path="profile" element={<ProfileView />} />
           <Route path="players/:playerId" element={<PlayerProfileView />} />
+          <Route path="memberships" element={<MembershipsView />} />
+          <Route path="canchas" element={<CanchasView />} />
         </Route>
         <Route
           path="*"

@@ -10,6 +10,7 @@ import {
   Users,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { checkAndUnlockAchievements } from '../gamification/achievementsLedger'
 import { XP_SOURCES, awardPlayerXp } from '../gamification/xpLedger'
 import { ensurePlayerProfile } from '../profile/profileConnections'
 
@@ -451,6 +452,44 @@ function TrainingSessionsView() {
       )
       setToast(`Sesion cerrada. ${presentRows.length} jugadores recibieron +50 XP.`)
       await loadAttendance(selectedSession.id, true)
+
+      // Check training achievements for each present player
+      for (const row of presentRows) {
+        const player = players.find((p) => String(p.id) === String(row.player_id))
+        if (!player) continue
+
+        const { data: streaksData } = await supabase
+          .from('streaks')
+          .select('streak_type, current_count')
+          .eq('player_id', String(player.id))
+
+        const trainingStreak =
+          (streaksData || []).find((s) => s.streak_type === 'training')
+            ?.current_count || 0
+
+        // Count this month's training attendances
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+
+        const { count: monthlyAttendance } = await supabase
+          .from('training_attendance')
+          .select('id', { count: 'exact', head: true })
+          .eq('player_id', String(player.id))
+          .eq('status', 'present')
+          .gte('marked_at', startOfMonth.toISOString())
+
+        await checkAndUnlockAchievements({
+          player,
+          userId: player.user_id,
+          context: {
+            trainingClosed: {
+              trainingStreak,
+              monthlyAttendance: monthlyAttendance || 0,
+            },
+          },
+        })
+      }
     }
 
     setIsSaving(false)

@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays,
+  Check,
   CircleDot,
+  Play,
   Plus,
   Trophy,
   Users,
 } from 'lucide-react'
 import useActiveRole from '../../hooks/useActiveRole'
+import useManagerClub from '../../hooks/useManagerClub'
 import { supabase } from '../../lib/supabase'
+import { checkAndUnlockAchievements } from '../gamification/achievementsLedger'
+import { awardPlayerXp } from '../gamification/xpLedger'
 import usePlayerProfile from '../profile/usePlayerProfile'
 
 const categoryOptions = ['D', 'C', 'B', 'A', 'Pro']
@@ -114,25 +119,27 @@ function TournamentsView() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [activeTournamentView, setActiveTournamentView] = useState('overview')
+  const [activeResultMatch, setActiveResultMatch] = useState(null)
   const [activeRole] = useActiveRole(user?.user_metadata?.role || 'player')
 
+  const { clubId: managerClubId } = useManagerClub()
+  const effectiveClubId = profile.clubId || managerClubId
   const isCoach = activeRole === 'coach' && Boolean(profile.isCoach)
   const isManager = user?.user_metadata?.role === 'manager'
   const playerId = player?.id
-  const canCreateTournament = isCoach && !isManager
+  const canCreateTournament = isManager || (isCoach && !isManager)
   const canRegister = Boolean(
       player?.id &&
-      !canCreateTournament &&
       !isManager &&
       activeRole !== 'coach' &&
-      profile.clubId &&
+      effectiveClubId &&
       hasClubAccess(profile.clubMembershipStatus),
   )
   const registerBlockReason = getRegisterBlockReason({
     activeRole,
     canCreateTournament,
     clubMembershipStatus: profile.clubMembershipStatus,
-    hasClub: Boolean(profile.clubId),
+    hasClub: Boolean(effectiveClubId),
     hasPlayer: Boolean(player?.id),
     isManager,
   })
@@ -193,7 +200,7 @@ function TournamentsView() {
       setIsLoading(true)
       setError('')
 
-      const nextClubId = profile.clubId
+      const nextClubId = effectiveClubId
 
       if (!nextClubId) {
         setClub(null)
@@ -258,7 +265,7 @@ function TournamentsView() {
     return () => {
       isMounted = false
     }
-  }, [profile.clubId])
+  }, [effectiveClubId])
 
   const handleField = (key, value) => {
     setForm((current) => {
@@ -297,8 +304,8 @@ function TournamentsView() {
   }
 
   const handleCreateTournament = async () => {
-    if (!canCreateTournament || !profile.clubId) {
-      setError('Solo un coach vinculado a un club puede crear torneos.')
+    if (!canCreateTournament || !effectiveClubId) {
+      setError('Solo un coach o manager vinculado a un club puede crear torneos.')
       return
     }
 
@@ -314,7 +321,7 @@ function TournamentsView() {
     const { data: tournament, error: tournamentError } = await supabase
       .from('tournaments')
       .insert({
-        club_id: profile.clubId,
+        club_id: effectiveClubId,
         created_by_user_id: user?.id || null,
         created_by_player_id: player?.id ? String(player.id) : null,
         title: form.title.trim(),
@@ -392,6 +399,306 @@ function TournamentsView() {
     setIsSaving(false)
   }
 
+  const handleGenerateBracket = async (tournament) => {
+    const tournamentEntries = entries
+      .filter((e) => e.tournament_id === tournament.id && e.status !== 'withdrawn')
+      .sort((a, b) => (a.seed || 999) - (b.seed || 999))
+
+    if (tournamentEntries.length < 2) {
+      setError('Necesitas al menos 2 jugadores inscritos para generar el bracket.')
+      return
+    }
+
+    setIsSaving(true)
+    setError('')
+    setToast('')
+
+    // Create round 1 matches with simple sequential pairing
+    const round1Matches = []
+    for (let i = 0; i < tournamentEntries.length; i += 2) {
+      round1Matches.push({
+        tournament_id: tournament.id,
+        club_id: tournament.club_id,
+        round_number: 1,
+        match_order: Math.floor(i / 2) + 1,
+        player1_id: String(tournamentEntries[i].player_id),
+        player2_id: tournamentEntries[i + 1] ? String(tournamentEntries[i + 1].player_id) : null,
+        status: tournamentEntries[i + 1] ? 'scheduled' : 'walkover',
+      })
+    }
+
+    const { data: createdMatches, error: matchError } = await supabase
+      .from('tournament_matches')
+      .insert(round1Matches)
+      .select()
+
+    if (matchError) {
+      setError(matchError.message)
+      setIsSaving(false)
+      return
+    }
+
+    // Mark tournament as in_progress
+    const { data: updatedTournament, error: statusError } = await supabase
+      .from('tournaments')
+      .update({ status: 'in_progress', updated_at: new Date().toISOString() })
+      .eq('id', tournament.id)
+      .select()
+      .single()
+
+    if (statusError) {
+      setError(statusError.message)
+      setIsSaving(false)
+      return
+    }
+
+    // Award participation XP (+80) to all registered players
+    for (const entry of tournamentEntries) {
+      const playerRow = players.find((p) => String(p.id) === String(entry.player_id))
+      if (!playerRow) continue
+
+      await awardPlayerXp({
+        player: playerRow,
+        amount: 80,
+        source: 'tournament',
+        sourceId: tournament.id,
+        label: 'Participacion en torneo',
+        description: tournament.title,
+        metadata: { tournament_id: tournament.id, phase: 'participation' },
+      })
+
+      await supabase
+        .from('tournament_entries')
+        .update({ xp_awarded: 80 })
+        .eq('id', entry.id)
+    }
+
+    setTournaments((current) =>
+      current.map((t) => (t.id === updatedTournament.id ? updatedTournament : t)),
+    )
+    setMatches((current) => [...current, ...(createdMatches || [])])
+    setActiveTournamentView('bracket')
+    setToast(`Bracket generado con ${round1Matches.length} partidos. Se otorgaron +80 XP a cada jugador.`)
+    setIsSaving(false)
+  }
+
+  const handleRecordResult = async ({ match, score, winnerId }) => {
+    if (!match || !winnerId || !score.trim()) {
+      setError('Completa marcador y ganador antes de guardar.')
+      return
+    }
+
+    setIsSaving(true)
+    setError('')
+    setToast('')
+
+    const loserId = String(match.player1_id) === String(winnerId)
+      ? match.player2_id
+      : match.player1_id
+
+    const tournamentEntries = entries.filter((e) => e.tournament_id === match.tournament_id)
+    const totalRounds = calcTotalRounds(tournamentEntries.length)
+    const phaseXP = getAdvanceXP(match.round_number, totalRounds)
+    const isFinalRound = match.round_number === totalRounds
+
+    // Update the match
+    const { data: updatedMatch, error: matchError } = await supabase
+      .from('tournament_matches')
+      .update({
+        status: 'finished',
+        winner_player_id: String(winnerId),
+        score: score.trim(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', match.id)
+      .select()
+      .single()
+
+    if (matchError) {
+      setError(matchError.message)
+      setIsSaving(false)
+      return
+    }
+
+    setMatches((current) =>
+      current.map((m) => (m.id === updatedMatch.id ? updatedMatch : m)),
+    )
+
+    const tournament = tournaments.find((t) => t.id === match.tournament_id)
+
+    // Award XP to winner (for advancing)
+    const winnerRow = players.find((p) => String(p.id) === String(winnerId))
+    const loserRow = players.find((p) => String(p.id) === String(loserId))
+
+    if (winnerRow && phaseXP.winner > 0) {
+      await awardPlayerXp({
+        player: winnerRow,
+        amount: phaseXP.winner,
+        source: 'tournament',
+        sourceId: tournament?.id,
+        label: isFinalRound ? 'Campeon de torneo' : `Torneo ronda ${match.round_number + 1}`,
+        description: tournament?.title || '',
+        metadata: { tournament_id: tournament?.id, round: match.round_number, phase: isFinalRound ? 'champion' : 'advance' },
+      })
+
+      // Update winner entry xp
+      const winnerEntry = tournamentEntries.find((e) => String(e.player_id) === String(winnerId))
+      if (winnerEntry) {
+        await supabase.from('tournament_entries').update({
+          xp_awarded: (winnerEntry.xp_awarded || 0) + phaseXP.winner,
+          ...(isFinalRound ? { status: 'champion', final_position: 1 } : {}),
+        }).eq('id', winnerEntry.id)
+      }
+    }
+
+    // Award XP to loser (runner-up or just eliminated)
+    if (loserRow && phaseXP.loser > 0) {
+      await awardPlayerXp({
+        player: loserRow,
+        amount: phaseXP.loser,
+        source: 'tournament',
+        sourceId: tournament?.id,
+        label: isFinalRound ? 'Finalista de torneo' : `Torneo eliminado ronda ${match.round_number}`,
+        description: tournament?.title || '',
+        metadata: { tournament_id: tournament?.id, round: match.round_number, phase: isFinalRound ? 'runner_up' : 'eliminated' },
+      })
+    }
+
+    // Update loser entry status
+    const loserEntry = tournamentEntries.find((e) => String(e.player_id) === String(loserId))
+    if (loserEntry) {
+      await supabase.from('tournament_entries').update({
+        status: isFinalRound ? 'runner_up' : 'eliminated',
+        ...(isFinalRound ? { final_position: 2 } : {}),
+        xp_awarded: (loserEntry.xp_awarded || 0) + (phaseXP.loser || 0),
+      }).eq('id', loserEntry.id)
+    }
+
+    setEntries((current) =>
+      current.map((e) => {
+        if (String(e.player_id) === String(winnerId) && e.tournament_id === match.tournament_id) {
+          return { ...e, xp_awarded: (e.xp_awarded || 0) + (phaseXP.winner || 0), ...(isFinalRound ? { status: 'champion' } : {}) }
+        }
+        if (String(e.player_id) === String(loserId) && e.tournament_id === match.tournament_id) {
+          return { ...e, status: isFinalRound ? 'runner_up' : 'eliminated', xp_awarded: (e.xp_awarded || 0) + (phaseXP.loser || 0) }
+        }
+        return e
+      }),
+    )
+
+    if (isFinalRound) {
+      // Create digital trophy
+      const clubData = tournament ? await supabase.from('clubs').select('name').eq('id', tournament.club_id).maybeSingle() : null
+      const winnerUserRow = await supabase.from('players').select('user_id').eq('id', String(winnerId)).maybeSingle()
+
+      await supabase.from('tournament_trophies').insert({
+        tournament_id: tournament.id,
+        club_id: tournament.club_id,
+        player_id: String(winnerId),
+        user_id: winnerUserRow.data?.user_id || null,
+        tournament_title: tournament.title,
+        club_name: clubData?.data?.name || '',
+        won_at: new Date().toISOString().slice(0, 10),
+        category: tournament.category || null,
+        age_group: tournament.age_group || null,
+      })
+
+      // Close tournament
+      const { data: finishedTournament } = await supabase
+        .from('tournaments')
+        .update({ status: 'finished', updated_at: new Date().toISOString() })
+        .eq('id', tournament.id)
+        .select()
+        .single()
+
+      if (finishedTournament) {
+        setTournaments((current) =>
+          current.map((t) => (t.id === finishedTournament.id ? finishedTournament : t)),
+        )
+      }
+
+      // Check tournament achievements for all participants
+      for (const entry of tournamentEntries) {
+        const pRow = players.find((p) => String(p.id) === String(entry.player_id))
+        if (!pRow) continue
+
+        const { count: totalParticipations } = await supabase
+          .from('tournament_entries')
+          .select('id', { count: 'exact', head: true })
+          .eq('player_id', String(entry.player_id))
+          .not('status', 'eq', 'withdrawn')
+
+        const { count: totalWins } = await supabase
+          .from('tournament_entries')
+          .select('id', { count: 'exact', head: true })
+          .eq('player_id', String(entry.player_id))
+          .eq('status', 'champion')
+
+        await checkAndUnlockAchievements({
+          player: pRow,
+          userId: pRow.user_id,
+          context: {
+            tournament: {
+              totalParticipations: totalParticipations || 0,
+              totalWins: totalWins || 0,
+            },
+          },
+        })
+      }
+
+      setActiveResultMatch(null)
+      setToast(`Torneo finalizado. ${winnerRow?.full_name || 'El ganador'} es campeon. Trofeo digital generado.`)
+    } else {
+      // Advance winner to next round
+      const nextRound = match.round_number + 1
+      const nextOrder = Math.ceil(match.match_order / 2)
+      const currentMatches = [...matches, updatedMatch]
+      const existingNext = currentMatches.find(
+        (m) => m.tournament_id === match.tournament_id && m.round_number === nextRound && m.match_order === nextOrder,
+      )
+
+      if (existingNext) {
+        const isOdd = match.match_order % 2 === 1
+        await supabase
+          .from('tournament_matches')
+          .update({ [isOdd ? 'player1_id' : 'player2_id']: String(winnerId) })
+          .eq('id', existingNext.id)
+
+        setMatches((current) =>
+          current.map((m) =>
+            m.id === existingNext.id
+              ? { ...m, [isOdd ? 'player1_id' : 'player2_id']: String(winnerId) }
+              : m,
+          ),
+        )
+      } else {
+        const isOdd = match.match_order % 2 === 1
+        const { data: newMatch } = await supabase
+          .from('tournament_matches')
+          .insert({
+            tournament_id: match.tournament_id,
+            club_id: match.club_id,
+            round_number: nextRound,
+            match_order: nextOrder,
+            player1_id: isOdd ? String(winnerId) : null,
+            player2_id: isOdd ? null : String(winnerId),
+            status: 'scheduled',
+          })
+          .select()
+          .single()
+
+        if (newMatch) {
+          setMatches((current) => [...current, newMatch])
+        }
+      }
+
+      setActiveResultMatch(null)
+      setToast(`Resultado registrado. ${winnerRow?.full_name || 'El ganador'} avanza a ronda ${nextRound}. +${phaseXP.winner} XP.`)
+    }
+
+    setIsSaving(false)
+  }
+
   if (isLoading) {
     return <p className="text-sm text-open-muted">Cargando torneos...</p>
   }
@@ -416,20 +723,20 @@ function TournamentsView() {
         </p>
       ) : null}
 
-      {!profile.clubId ? (
+      {!effectiveClubId ? (
         <p className="border border-open-light bg-open-surface px-4 py-6 text-sm text-open-muted">
           Vincula tu cuenta a un club para ver o crear torneos.
         </p>
       ) : null}
 
-      {profile.clubId && profile.isCoach && activeRole !== 'coach' ? (
+      {effectiveClubId && profile.isCoach && activeRole !== 'coach' ? (
         <p className="border border-open-light bg-open-surface px-4 py-3 text-sm text-open-muted">
           Cambia a vista Coach para crear torneos. En vista jugador puedes ver
           torneos e inscripciones.
         </p>
       ) : null}
 
-      {profile.clubId ? (
+      {effectiveClubId ? (
         <div className="grid gap-5 2xl:grid-cols-[0.92fr_1.08fr]">
           {canCreateTournament ? (
             <CreateTournamentForm
@@ -462,13 +769,19 @@ function TournamentsView() {
             />
             <BracketPreview
               activeView={activeTournamentView}
+              activeResultMatch={activeResultMatch}
               bracketPairs={bracketPairs}
+              canManage={canCreateTournament}
               entries={selectedEntries}
+              isSaving={isSaving}
               matches={selectedMatches}
               myEntries={myEntries}
               player={player}
               players={players}
               tournament={selectedTournament}
+              onGenerateBracket={handleGenerateBracket}
+              onRecordResult={handleRecordResult}
+              onSelectResultMatch={setActiveResultMatch}
               onViewChange={setActiveTournamentView}
             />
           </div>
@@ -905,13 +1218,19 @@ function TournamentList({
 
 function BracketPreview({
   activeView,
+  activeResultMatch,
   bracketPairs,
+  canManage,
   entries,
+  isSaving,
   matches,
   myEntries,
   player,
   players,
   tournament,
+  onGenerateBracket,
+  onRecordResult,
+  onSelectResultMatch,
   onViewChange,
 }) {
   const playerMap = useMemo(
@@ -946,12 +1265,26 @@ function BracketPreview({
 
       {tournament ? (
         <div className="grid gap-4">
+          {canManage && tournament.status === 'open' && matches.length === 0 && (
+            <button
+              type="button"
+              onClick={() => onGenerateBracket(tournament)}
+              disabled={isSaving || entries.length < 2}
+              className="inline-flex h-11 items-center justify-center gap-2 bg-open-primary px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-open-muted"
+            >
+              <Play size={15} strokeWidth={1.8} />
+              {isSaving ? 'Generando...' : `Cerrar inscripciones y generar bracket (${entries.length} jugadores)`}
+            </button>
+          )}
           <TournamentViewTabs activeView={activeView} onViewChange={onViewChange} />
           <TournamentWorkspaceView
+            activeResultMatch={activeResultMatch}
             activeView={activeView}
             bracketPairs={bracketPairs}
+            canManage={canManage}
             entries={entries}
             groups={groups}
+            isSaving={isSaving}
             matches={matches}
             myEntries={myEntries}
             player={player}
@@ -959,6 +1292,8 @@ function BracketPreview({
             players={players}
             standings={standings}
             tournament={tournament}
+            onRecordResult={onRecordResult}
+            onSelectResultMatch={onSelectResultMatch}
           />
         </div>
       ) : (
@@ -993,10 +1328,13 @@ function TournamentViewTabs({ activeView, onViewChange }) {
 }
 
 function TournamentWorkspaceView({
+  activeResultMatch,
   activeView,
   bracketPairs,
+  canManage,
   entries,
   groups,
+  isSaving,
   matches,
   myEntries,
   player,
@@ -1004,13 +1342,21 @@ function TournamentWorkspaceView({
   players,
   standings,
   tournament,
+  onRecordResult,
+  onSelectResultMatch,
 }) {
   if (activeView === 'bracket') {
     return (
       <BracketDrawView
+        activeResultMatch={activeResultMatch}
         bracketPairs={bracketPairs}
+        canManage={canManage}
+        isSaving={isSaving}
         matches={matches}
         playerMap={playerMap}
+        players={players}
+        onRecordResult={onRecordResult}
+        onSelectResultMatch={onSelectResultMatch}
       />
     )
   }
@@ -1088,7 +1434,17 @@ function TournamentOverviewView({ entries, matches, standings, tournament }) {
   )
 }
 
-function BracketDrawView({ bracketPairs, matches, playerMap }) {
+function BracketDrawView({
+  activeResultMatch,
+  bracketPairs,
+  canManage,
+  isSaving,
+  matches,
+  playerMap,
+  players,
+  onRecordResult,
+  onSelectResultMatch,
+}) {
   if (matches.length) {
     const rounds = groupMatchesByRound(matches)
 
@@ -1100,7 +1456,17 @@ function BracketDrawView({ bracketPairs, matches, playerMap }) {
               Ronda {round}
             </p>
             {roundMatches.map((match) => (
-              <TournamentMatchRow key={match.id} match={match} playerMap={playerMap} />
+              <TournamentMatchRow
+                key={match.id}
+                activeResultMatch={activeResultMatch}
+                canManage={canManage}
+                isSaving={isSaving}
+                match={match}
+                playerMap={playerMap}
+                players={players}
+                onRecordResult={onRecordResult}
+                onSelectResultMatch={onSelectResultMatch}
+              />
             ))}
           </div>
         ))}
@@ -1310,7 +1676,24 @@ function EmptyTournamentState({ text }) {
   )
 }
 
-function TournamentMatchRow({ match, playerMap }) {
+function TournamentMatchRow({
+  activeResultMatch,
+  canManage,
+  isSaving,
+  match,
+  playerMap,
+  players,
+  onRecordResult,
+  onSelectResultMatch,
+}) {
+  const isActive = activeResultMatch?.id === match.id
+  const [score, setScore] = useState('')
+  const [winnerId, setWinnerId] = useState('')
+
+  const p1Name = playerMap.get(String(match.player1_id)) || 'Jugador pendiente'
+  const p2Name = playerMap.get(String(match.player2_id)) || 'Jugador pendiente'
+  const canRecord = canManage && match.status === 'scheduled' && match.player1_id && match.player2_id
+
   return (
     <div className="grid gap-2 border border-open-light bg-open-bg p-3">
       <div className="flex items-center justify-between gap-3">
@@ -1322,16 +1705,64 @@ function TournamentMatchRow({ match, playerMap }) {
         </span>
       </div>
       <MatchPlayer
-        isWinner={match.winner_player_id === match.player1_id}
-        name={playerMap.get(String(match.player1_id)) || 'Jugador pendiente'}
+        isWinner={String(match.winner_player_id) === String(match.player1_id)}
+        name={p1Name}
       />
       <MatchPlayer
-        isWinner={match.winner_player_id === match.player2_id}
-        name={playerMap.get(String(match.player2_id)) || 'Jugador pendiente'}
+        isWinner={String(match.winner_player_id) === String(match.player2_id)}
+        name={p2Name}
       />
       <p className="border-t border-open-light pt-2 text-sm font-semibold text-open-ink">
-        Score: {match.score || 'Pendiente'}
+        {match.score || 'Pendiente'}
       </p>
+
+      {canRecord && !isActive && (
+        <button
+          type="button"
+          onClick={() => onSelectResultMatch(match)}
+          className="mt-1 h-9 border border-open-light bg-open-surface px-3 text-xs font-semibold text-open-ink transition hover:border-open-primary"
+        >
+          Registrar resultado
+        </button>
+      )}
+
+      {canRecord && isActive && (
+        <div className="mt-1 grid gap-2 border-t border-open-light pt-2">
+          <input
+            value={score}
+            onChange={(e) => setScore(e.target.value)}
+            placeholder="Marcador (ej. 6-4, 7-5)"
+            className="h-9 border border-open-light bg-open-surface px-3 text-xs text-open-ink outline-none focus:border-open-primary"
+          />
+          <select
+            value={winnerId}
+            onChange={(e) => setWinnerId(e.target.value)}
+            className="h-9 border border-open-light bg-open-surface px-3 text-xs text-open-ink outline-none focus:border-open-primary"
+          >
+            <option value="">Selecciona ganador...</option>
+            <option value={String(match.player1_id)}>{p1Name}</option>
+            <option value={String(match.player2_id)}>{p2Name}</option>
+          </select>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={isSaving || !score.trim() || !winnerId}
+              onClick={() => onRecordResult({ match, score, winnerId })}
+              className="inline-flex h-9 flex-1 items-center justify-center gap-2 bg-open-primary px-3 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-open-muted"
+            >
+              <Check size={13} strokeWidth={2} />
+              {isSaving ? 'Guardando...' : 'Confirmar'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectResultMatch(null)}
+              className="h-9 border border-open-light bg-open-surface px-3 text-xs font-semibold text-open-muted transition hover:border-open-primary"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1729,6 +2160,19 @@ function formatScoring(value) {
 
 function formatRuleKey(value) {
   return String(value).replaceAll('_', ' ')
+}
+
+function calcTotalRounds(playerCount) {
+  return Math.ceil(Math.log2(Math.max(playerCount, 2)))
+}
+
+function getAdvanceXP(roundNumber, totalRounds) {
+  const fromEnd = totalRounds - roundNumber
+  // fromEnd=0 → final, 1 → semi, 2 → quarter, 3+ → earlier rounds
+  if (fromEnd === 0) return { winner: 200, loser: 100 }
+  if (fromEnd === 1) return { winner: 80, loser: 0 }
+  if (fromEnd === 2) return { winner: 60, loser: 0 }
+  return { winner: 40, loser: 0 }
 }
 
 export default TournamentsView

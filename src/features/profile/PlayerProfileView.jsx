@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { getPlayerAchievements } from '../gamification/achievementsLedger'
 import PlayerCard from './PlayerCard'
 import PlayerProfileDetails from './PlayerProfileDetails'
 
@@ -11,6 +12,8 @@ function PlayerProfileView() {
   const [club, setClub] = useState(null)
   const [recentMatches, setRecentMatches] = useState([])
   const [streakRows, setStreakRows] = useState([])
+  const [achievementRows, setAchievementRows] = useState([])
+  const [trophyRows, setTrophyRows] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -73,7 +76,18 @@ function PlayerProfileView() {
         setStreakRows(streaksData || [])
       }
 
+      const [achievements, trophiesRes] = await Promise.all([
+        getPlayerAchievements(data.id),
+        supabase
+          .from('tournament_trophies')
+          .select('*')
+          .eq('player_id', String(data.id))
+          .order('won_at', { ascending: false }),
+      ])
+
       if (isMounted) {
+        setAchievementRows(achievements)
+        setTrophyRows(trophiesRes.data || [])
         setIsLoading(false)
       }
     }
@@ -100,7 +114,7 @@ function PlayerProfileView() {
     )
   }
 
-  const profile = toCardProfile(player, club, recentMatches, streakRows)
+  const profile = toCardProfile(player, club, recentMatches, streakRows, achievementRows, trophyRows)
 
   return (
     <section className="mx-auto grid w-full max-w-5xl gap-6">
@@ -164,7 +178,7 @@ function InfoRow({ label, value }) {
   )
 }
 
-function toCardProfile(player, club, recentMatches = [], streakRows = []) {
+function toCardProfile(player, club, recentMatches = [], streakRows = [], achievementRows = [], trophyRows = []) {
   return {
     playerId: player.id || '',
     fullName: player.full_name || player.email || 'Jugador OPEN',
@@ -184,6 +198,8 @@ function toCardProfile(player, club, recentMatches = [], streakRows = []) {
     clubMembershipLabel: formatMembership(player.club_membership_status),
     recentMatches,
     streakRows,
+    achievementRows,
+    trophyRows,
     stats: {
       stat_derecha: player.stat_derecha ?? player.stat_ataque ?? 50,
       stat_reves: player.stat_reves ?? player.stat_defensa ?? 50,

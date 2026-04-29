@@ -1,7 +1,79 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, ClipboardList, Swords, Trophy, X } from 'lucide-react'
+import { Check, ClipboardList, ExternalLink, Swords, Trophy, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { checkAndUnlockAchievements } from '../gamification/achievementsLedger'
 import usePlayerProfile from '../profile/usePlayerProfile'
+
+async function buildMatchContext(playerId) {
+  const [playerRes, streaksRes, matchesRes] = await Promise.all([
+    supabase.from('players').select('id, user_id, club_id, match_aces').eq('id', String(playerId)).maybeSingle(),
+    supabase.from('streaks').select('streak_type, current_count').eq('player_id', String(playerId)),
+    supabase
+      .from('friendly_matches')
+      .select('id, winner_player_id, created_by_player_id, opponent_player_id, match_date')
+      .or(`created_by_player_id.eq.${playerId},opponent_player_id.eq.${playerId}`)
+      .eq('status', 'confirmed')
+      .order('match_date', { ascending: false })
+      .limit(20),
+  ])
+
+  const player = playerRes.data
+  const streaks = streaksRes.data || []
+  const matches = matchesRes.data || []
+
+  const winStreak = streaks.find((s) => s.streak_type === 'wins')?.current_count || 0
+  const totalConfirmedMatches = matches.length
+
+  const opponentIds = new Set(
+    matches.map((m) =>
+      String(m.created_by_player_id) === String(playerId)
+        ? String(m.opponent_player_id)
+        : String(m.created_by_player_id),
+    ),
+  )
+
+  // Perseverante: second-most-recent confirmed match was a loss, and most recent is the just-confirmed one
+  const prevMatch = matches[1]
+  const hadRecentLoss =
+    prevMatch &&
+    String(prevMatch.winner_player_id) !== String(playerId)
+
+  // Resiliencia: win streak >= 5 (implies a prior loss before the streak)
+  const winStreakAfterLoss = winStreak
+
+  return {
+    player,
+    context: {
+      matchConfirmed: {
+        totalConfirmedMatches,
+        winStreak,
+        distinctOpponentCount: opponentIds.size,
+        hadRecentLoss,
+        winStreakAfterLoss,
+        totalAces: player?.match_aces || 0,
+      },
+    },
+  }
+}
+
+async function checkMatchAchievements(confirmedMatch, currentPlayer) {
+  const playerIds = [
+    confirmedMatch.created_by_player_id,
+    confirmedMatch.opponent_player_id,
+  ].filter(Boolean)
+
+  for (const playerId of playerIds) {
+    const { player, context } = await buildMatchContext(playerId)
+    if (!player) continue
+
+    await checkAndUnlockAchievements({
+      player,
+      userId: player.user_id,
+      context,
+    })
+  }
+}
 
 const matchStatFields = [
   { key: 'aces', label: 'Aces' },
@@ -136,6 +208,10 @@ function FriendlyMatchesView() {
         score_sets: form.scoreSets,
         has_live_judge: form.isLiveMatch,
         is_live_match: form.isLiveMatch,
+        judge_player_id: form.isLiveMatch && form.judgePlayerId ? String(form.judgePlayerId) : null,
+        judge_user_id: form.isLiveMatch && form.judgePlayerId
+          ? (players.find((p) => String(p.id) === form.judgePlayerId)?.user_id || null)
+          : null,
         creator_stats: form.creatorStats,
         opponent_stats: form.opponentStats,
         status: 'pending',
@@ -171,6 +247,9 @@ function FriendlyMatchesView() {
         current.map((item) => (item.id === data.id ? data : item)),
       )
       setToast('Partido confirmado. XP acreditado a ambos jugadores.')
+
+      // Check achievements for both players involved in this match
+      await checkMatchAchievements(data, currentPlayer)
     }
 
     setIsSaving(false)
@@ -376,6 +455,21 @@ function CreateMatchForm({
           className="h-4 w-4 accent-black"
         />
       </label>
+
+      {form.isLiveMatch && (
+        <select
+          value={form.judgePlayerId}
+          onChange={(event) => onField('judgePlayerId', event.target.value)}
+          className="h-11 border border-open-light bg-open-bg px-3 text-sm text-open-ink outline-none focus:border-open-primary"
+        >
+          <option value="">Juez (opcional — cualquiera puede juzgar)</option>
+          {players.map((player) => (
+            <option key={player.id} value={player.id}>
+              {player.full_name || player.email}
+            </option>
+          ))}
+        </select>
+      )}
 
       <MatchStatsEditor
         currentPlayer={currentPlayer}
@@ -592,6 +686,10 @@ function MatchRow({
   const canConfirm =
     match.status === 'pending' &&
     String(match.opponent_player_id) === String(currentPlayer?.id)
+  const canJudge =
+    match.is_live_match &&
+    match.status === 'pending' &&
+    (!match.judge_player_id || String(match.judge_player_id) === String(currentPlayer?.id))
   const winnerName =
     String(match.winner_player_id) === String(currentPlayer?.id)
       ? 'Tu'
@@ -616,26 +714,39 @@ function MatchRow({
         </span>
       </div>
 
-      {canConfirm ? (
+      {canConfirm || canJudge ? (
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isSaving}
-            className="inline-flex h-10 items-center gap-2 bg-open-ink px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-open-muted"
-          >
-            <Check size={16} strokeWidth={1.8} />
-            Confirmar
-          </button>
-          <button
-            type="button"
-            onClick={onReject}
-            disabled={isSaving}
-            className="inline-flex h-10 items-center gap-2 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink disabled:opacity-50"
-          >
-            <X size={16} strokeWidth={1.8} />
-            Rechazar
-          </button>
+          {canConfirm && (
+            <>
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={isSaving}
+                className="inline-flex h-10 items-center gap-2 bg-open-ink px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-open-muted"
+              >
+                <Check size={16} strokeWidth={1.8} />
+                Confirmar
+              </button>
+              <button
+                type="button"
+                onClick={onReject}
+                disabled={isSaving}
+                className="inline-flex h-10 items-center gap-2 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink disabled:opacity-50"
+              >
+                <X size={16} strokeWidth={1.8} />
+                Rechazar
+              </button>
+            </>
+          )}
+          {canJudge && (
+            <Link
+              to={`/live-match/${match.id}`}
+              className="inline-flex h-10 items-center gap-2 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink transition hover:border-open-primary"
+            >
+              <ExternalLink size={16} strokeWidth={1.8} />
+              Abrir como Juez
+            </Link>
+          )}
         </div>
       ) : null}
     </article>
@@ -674,6 +785,7 @@ function createDefaultForm() {
     ],
     winnerId: '',
     isLiveMatch: false,
+    judgePlayerId: '',
     creatorStats: createEmptyStats(),
     opponentStats: createEmptyStats(),
   }

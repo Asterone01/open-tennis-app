@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import HomeDashboard from './HomeDashboard'
 import ManagerDashboard from '../admin/ManagerDashboard'
-import EvaluationsView from '../coach/EvaluationsView'
+import CoachDashboard from '../coach/CoachDashboard'
 import useActiveRole from '../../hooks/useActiveRole'
 import usePlayerProfile from '../profile/usePlayerProfile'
 
@@ -17,7 +17,7 @@ function DashboardRouter({ session }) {
         ? 'coach'
         : 'player'
   const dashboards = {
-    coach: EvaluationsView,
+    coach: CoachDashboard,
     manager: ManagerDashboard,
     player: HomeDashboard,
   }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Palette, RotateCcw, Save } from 'lucide-react'
 import { applyTheme } from '../../hooks/useTheme'
 import { supabase } from '../../lib/supabase'
+import { getPlayerAchievements } from '../gamification/achievementsLedger'
 import JoinClubModal from './JoinClubModal'
 import MembershipCard from './MembershipCard'
 import PlayerCard from './PlayerCard'
@@ -15,6 +16,8 @@ function ProfileView() {
   const [club, setClub] = useState(null)
   const [recentMatches, setRecentMatches] = useState([])
   const [streakRows, setStreakRows] = useState([])
+  const [achievementRows, setAchievementRows] = useState([])
+  const [trophyRows, setTrophyRows] = useState([])
   const [cardColor, setCardColor] = useState('')
   const [isSavingColor, setIsSavingColor] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
@@ -111,6 +114,37 @@ function ProfileView() {
     }
   }, [player?.id])
 
+  useEffect(() => {
+    let isMounted = true
+
+    const loadAchievements = async () => {
+      if (!player?.id) {
+        setAchievementRows([])
+        return
+      }
+
+      const [rows, trophiesRes] = await Promise.all([
+        getPlayerAchievements(player.id),
+        supabase
+          .from('tournament_trophies')
+          .select('*')
+          .eq('player_id', String(player.id))
+          .order('won_at', { ascending: false }),
+      ])
+
+      if (isMounted) {
+        setAchievementRows(rows)
+        setTrophyRows(trophiesRes.data || [])
+      }
+    }
+
+    loadAchievements()
+
+    return () => {
+      isMounted = false
+    }
+  }, [player?.id])
+
   const resolvedCardColor =
     cardColor ||
     profile.playerCardColor ||
@@ -125,8 +159,10 @@ function ProfileView() {
       playerCardColor: cardColor || profile.playerCardColor,
       recentMatches,
       streakRows,
+      achievementRows,
+      trophyRows,
     }),
-    [cardColor, club?.name, club?.primary_color, profile, recentMatches, streakRows],
+    [cardColor, club?.name, club?.primary_color, profile, recentMatches, streakRows, achievementRows, trophyRows],
   )
 
   const handleJoined = async (club) => {
