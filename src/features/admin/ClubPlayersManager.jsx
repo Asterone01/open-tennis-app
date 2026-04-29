@@ -6,7 +6,7 @@ import JoinClubModal from '../profile/JoinClubModal'
 import { ensurePlayerProfile } from '../profile/profileConnections'
 
 const playerSelect =
-  'id, full_name, email, level, xp, club_id, is_coach, club_membership_status, current_category, suggested_category, age_group'
+  'id, full_name, email, level, xp, club_id, is_coach, club_membership_status, current_category, suggested_category, age_group, membership_id, membership_since, membership_plan, membership_payment_status, membership_next_payment_date, membership_last_payment_date'
 
 function ClubPlayersManager({ mode = 'manager' }) {
   const [club, setClub] = useState(null)
@@ -196,7 +196,15 @@ function ClubPlayersManager({ mode = 'manager' }) {
 
     const { data, error: updateError } = await supabase
       .from('players')
-      .update({ club_id: club.id, club_membership_status: 'approved' })
+      .update({
+        club_id: club.id,
+        club_membership_status: 'approved',
+        membership_since: player.membership_since || todayIsoDate(),
+        membership_payment_status:
+          player.membership_payment_status === 'unknown'
+            ? 'pending'
+            : player.membership_payment_status || 'pending',
+      })
       .eq('id', player.id)
       .select(playerSelect)
       .single()
@@ -329,6 +337,26 @@ function ClubPlayersManager({ mode = 'manager' }) {
                   <p className="mt-1 text-xs text-open-muted">
                     Cat. {category} - {membership}
                   </p>
+                  {belongsToClub ? (
+                    <div className="mt-3 grid gap-2 text-xs text-open-muted sm:grid-cols-2 lg:grid-cols-4">
+                      <MembershipDatum
+                        label="ID"
+                        value={player.membership_id || 'Pendiente'}
+                      />
+                      <MembershipDatum
+                        label="Miembro desde"
+                        value={formatDate(player.membership_since)}
+                      />
+                      <MembershipDatum
+                        label="Proximo pago"
+                        value={formatDate(player.membership_next_payment_date)}
+                      />
+                      <MembershipDatum
+                        label="Pago"
+                        value={formatPayment(player.membership_payment_status)}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -407,6 +435,40 @@ function formatMembership(value, belongsToClub = false) {
   }
 
   return labels[value] || 'Sin club'
+}
+
+function MembershipDatum({ label, value }) {
+  return (
+    <span className="border border-open-light bg-open-surface px-2 py-1">
+      <span className="font-semibold text-open-ink">{label}:</span> {value}
+    </span>
+  )
+}
+
+function formatDate(value) {
+  if (!value) return 'Pendiente'
+
+  return new Intl.DateTimeFormat('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${value}T00:00:00`))
+}
+
+function formatPayment(value) {
+  const labels = {
+    unknown: 'Pendiente',
+    pending: 'Pendiente',
+    paid: 'Pagado',
+    overdue: 'Vencido',
+    waived: 'Exento',
+  }
+
+  return labels[value] || 'Pendiente'
+}
+
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10)
 }
 
 export default ClubPlayersManager

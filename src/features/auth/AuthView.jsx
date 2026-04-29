@@ -11,6 +11,8 @@ const loginRoles = [
   { id: 'player', label: 'Player', description: 'Perfil y retos' },
 ]
 
+const introImageUrl = '/auth-court.jpg'
+
 function AuthView() {
   const [step, setStep] = useState('role')
   const [mode, setMode] = useState('login')
@@ -103,9 +105,28 @@ function AuthView() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: 'easeOut' }}
-          className="grid w-full overflow-hidden border border-open-border bg-white md:grid-cols-[1fr_420px]"
+          className="grid w-full gap-4 rounded-2xl border border-open-border bg-open-surface p-4 md:grid-cols-[1fr_420px] md:gap-6"
         >
-          <div className="flex min-h-[520px] flex-col justify-between border-open-border p-8 md:border-r md:p-12">
+          <div
+            className="flex min-h-[520px] flex-col justify-between rounded-xl border border-open-border bg-open-surface bg-cover bg-center p-8 md:p-12"
+            style={{
+              backgroundImage: `
+                linear-gradient(
+                  to right,
+                  var(--color-open-surface) 0%,
+                  color-mix(in srgb, var(--color-open-surface) 92%, transparent) 42%,
+                  color-mix(in srgb, var(--color-open-surface) 18%, transparent) 100%
+                ),
+                linear-gradient(
+                  to top,
+                  var(--color-open-surface) 0%,
+                  color-mix(in srgb, var(--color-open-surface) 72%, transparent) 34%,
+                  transparent 72%
+                ),
+                url('${introImageUrl}')
+              `,
+            }}
+          >
             <div>
               <p className="open-logo text-sm text-open-muted">
                 OPEN
@@ -128,7 +149,7 @@ function AuthView() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="flex flex-col justify-center gap-5 bg-open-bg p-8 md:p-10"
+              className="flex flex-col justify-center gap-5 rounded-xl border border-open-border bg-open-bg p-8 md:p-10"
             >
               <div>
                 <h2 className="text-2xl font-semibold text-open-ink">
@@ -145,17 +166,17 @@ function AuthView() {
                     key={role.id}
                     type="button"
                     onClick={() => handleRoleSelect(role.id)}
-                    className="group flex items-center justify-between border border-open-border bg-open-surface px-4 py-4 text-left text-open-ink transition hover:border-black hover:bg-black hover:text-white"
+                    className="group flex items-center justify-between rounded-xl border border-open-border bg-open-surface px-4 py-4 text-left text-open-ink transition hover:border-open-ink hover:bg-open-ink hover:text-open-surface"
                   >
                     <span>
                       <span className="block text-sm font-semibold">
                         {role.label}
                       </span>
-                      <span className="mt-1 block text-xs text-open-muted group-hover:text-white/75">
+                      <span className="mt-1 block text-xs text-open-muted group-hover:text-open-surface/75">
                         {role.description}
                       </span>
                     </span>
-                    <span className="h-3 w-3 rounded-full border border-open-muted group-hover:border-white group-hover:bg-white" />
+                    <span className="h-3 w-3 rounded-full border border-open-muted group-hover:border-open-surface group-hover:bg-open-surface" />
                   </button>
                 ))}
               </div>
@@ -167,7 +188,7 @@ function AuthView() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="flex flex-col justify-center gap-5 bg-open-bg p-8 md:p-10"
+              className="flex flex-col justify-center gap-5 rounded-xl border border-open-border bg-open-bg p-8 md:p-10"
             >
               <button
                 type="button"
@@ -198,7 +219,7 @@ function AuthView() {
                   onChange={(event) => setEmail(event.target.value)}
                   autoComplete="email"
                   required
-                  className="h-12 border border-open-border bg-open-surface px-4 text-base text-open-ink outline-none transition focus:border-open-ink focus:bg-white"
+                  className="h-12 rounded-xl border border-open-border bg-open-surface px-4 text-base text-open-ink outline-none transition focus:border-open-ink focus:bg-open-surface"
                   placeholder="nombre@open.app"
                 />
               </label>
@@ -211,19 +232,19 @@ function AuthView() {
                   onChange={(event) => setPassword(event.target.value)}
                   autoComplete="current-password"
                   required
-                  className="h-12 border border-open-border bg-open-surface px-4 text-base text-open-ink outline-none transition focus:border-open-ink focus:bg-white"
+                  className="h-12 rounded-xl border border-open-border bg-open-surface px-4 text-base text-open-ink outline-none transition focus:border-open-ink focus:bg-open-surface"
                   placeholder="••••••••"
                 />
               </label>
 
               {error ? (
-                <p className="border border-open-border bg-white px-4 py-3 text-sm text-open-muted">
+                <p className="rounded-xl border border-open-border bg-open-surface px-4 py-3 text-sm text-open-muted">
                   {error}
                 </p>
               ) : null}
 
               {message ? (
-                <p className="border border-open-border bg-white px-4 py-3 text-sm text-open-muted">
+                <p className="rounded-xl border border-open-border bg-open-surface px-4 py-3 text-sm text-open-muted">
                   {message}
                 </p>
               ) : null}
@@ -231,7 +252,7 @@ function AuthView() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-12 bg-black px-5 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-black disabled:opacity-45"
+                className="h-12 rounded-xl bg-open-ink px-5 text-sm font-semibold text-open-surface transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {isSubmitting ? 'Iniciando sesión...' : 'Iniciar sesión'}
               </button>
@@ -239,7 +260,7 @@ function AuthView() {
               <button
                 type="button"
                 onClick={() => setMode('signup')}
-                className="h-12 border border-open-border bg-open-surface px-5 text-sm font-semibold text-open-ink transition hover:border-black"
+                className="h-12 rounded-xl border border-open-border bg-open-surface px-5 text-sm font-semibold text-open-ink transition hover:border-open-ink"
               >
                 Registrarse
               </button>

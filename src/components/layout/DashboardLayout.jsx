@@ -1,8 +1,20 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { Bell, Check, Home, ListOrdered, LogOut, Swords, User } from 'lucide-react'
+import {
+  Bell,
+  Check,
+  Home,
+  ListOrdered,
+  LogOut,
+  Moon,
+  Swords,
+  Sun,
+  Trophy,
+  User,
+} from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import useActiveRole from '../../hooks/useActiveRole'
+import useColorMode from '../../hooks/useColorMode'
 import useTheme from '../../hooks/useTheme'
 import usePlayerProfile from '../../features/profile/usePlayerProfile'
 
@@ -10,11 +22,13 @@ const navItems = [
   { label: 'Inicio', to: '/dashboard', icon: Home },
   { label: 'Ranking', to: '/ranking', icon: ListOrdered },
   { label: 'Partidos', to: '/matches', icon: Swords },
+  { label: 'Torneos', to: '/tournaments', icon: Trophy },
   { label: 'Perfil', to: '/profile', icon: User },
 ]
 
 function DashboardLayout() {
   const { theme } = useTheme()
+  const { colorMode, toggleColorMode } = useColorMode()
   const { profile } = usePlayerProfile()
   const [activeRole, setActiveRole] = useActiveRole(
     profile.role === 'coach' ? 'coach' : 'player',
@@ -56,9 +70,13 @@ function DashboardLayout() {
                 onClick={handleRoleSwitch}
                 className="hidden h-10 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink transition hover:border-open-primary md:block"
               >
-                ⇄ Cambiar a Vista {activeRole === 'coach' ? 'Jugador' : 'Coach'}
+                Cambiar a Vista {activeRole === 'coach' ? 'Jugador' : 'Coach'}
               </button>
             ) : null}
+            <ColorModeToggle
+              colorMode={colorMode}
+              onToggle={toggleColorMode}
+            />
             <NotificationsButton />
             <button
               type="button"
@@ -93,12 +111,36 @@ function DashboardLayout() {
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-open-light bg-open-surface md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-open-light bg-open-surface md:hidden">
         {navItems.map((item) => (
           <NavItem key={item.to} item={item} isMobile />
         ))}
       </nav>
     </div>
+  )
+}
+
+function ColorModeToggle({ colorMode, onToggle }) {
+  const isDark = colorMode === 'dark'
+  const Icon = isDark ? Moon : Sun
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex h-10 w-[4.25rem] items-center rounded-full border border-open-light bg-open-bg p-1 text-open-ink transition hover:border-open-ink"
+      aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+      title={isDark ? 'Modo oscuro' : 'Modo claro'}
+    >
+      <span
+        className={[
+          'grid h-8 w-8 place-items-center rounded-full border border-open-light bg-open-surface transition-transform',
+          isDark ? 'translate-x-6' : 'translate-x-0',
+        ].join(' ')}
+      >
+        <Icon size={16} strokeWidth={1.9} />
+      </span>
+    </button>
   )
 }
 

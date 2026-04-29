@@ -114,6 +114,13 @@ function usePlayerProfile() {
         player?.club_membership_status ||
         user?.user_metadata?.club_membership_status ||
         'unassigned',
+      membershipId: player?.membership_id || '',
+      membershipSince: player?.membership_since || '',
+      membershipPlan: player?.membership_plan || 'standard',
+      membershipPaymentStatus: player?.membership_payment_status || 'unknown',
+      membershipNextPaymentDate: player?.membership_next_payment_date || '',
+      membershipLastPaymentDate: player?.membership_last_payment_date || '',
+      membershipNotes: player?.membership_notes || '',
       onboardingCompleted:
         player?.onboarding_completed ||
         user?.user_metadata?.onboarding_completed ||

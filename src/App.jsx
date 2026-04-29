@@ -9,6 +9,7 @@ import RankingView from './features/competition/RankingView'
 import DashboardRouter from './features/dashboard/DashboardRouter'
 import PlayerProfileView from './features/profile/PlayerProfileView'
 import ProfileView from './features/profile/ProfileView'
+import TournamentsView from './features/tournaments/TournamentsView'
 import { supabase } from './lib/supabase'
 
 function App() {
@@ -78,6 +79,7 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardRouter session={session} />} />
           <Route path="matches" element={<FriendlyMatchesView />} />
+          <Route path="tournaments" element={<TournamentsView />} />
           <Route path="ranking" element={<RankingView />} />
           <Route path="h2h" element={<FaceToFaceView />} />
           <Route path="h2h/:opponentId" element={<FaceToFaceView />} />

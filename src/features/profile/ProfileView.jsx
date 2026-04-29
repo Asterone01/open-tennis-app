@@ -3,9 +3,11 @@ import { Palette, RotateCcw, Save } from 'lucide-react'
 import { applyTheme } from '../../hooks/useTheme'
 import { supabase } from '../../lib/supabase'
 import JoinClubModal from './JoinClubModal'
+import MembershipCard from './MembershipCard'
 import PlayerCard from './PlayerCard'
 import PlayerProfileDetails from './PlayerProfileDetails'
 import usePlayerProfile from './usePlayerProfile'
+import PlayerTournamentStatus from '../tournaments/PlayerTournamentStatus'
 
 function ProfileView() {
   const avatarInputRef = useRef(null)
@@ -368,6 +370,12 @@ function ProfileView() {
           </button>
         </div>
       </section>
+
+      {profile.clubId ? (
+        <MembershipCard club={club} profile={profileWithClub} />
+      ) : null}
+
+      <PlayerTournamentStatus player={player} />
 
       <PlayerProfileDetails profile={profileWithClub} />
     </section>

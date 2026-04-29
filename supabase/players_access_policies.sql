@@ -31,6 +31,13 @@ alter table if exists public.players
   add column if not exists club_id uuid references public.clubs(id) on delete set null,
   add column if not exists is_coach boolean not null default false,
   add column if not exists club_membership_status text not null default 'unassigned',
+  add column if not exists membership_id text,
+  add column if not exists membership_since date,
+  add column if not exists membership_plan text not null default 'standard',
+  add column if not exists membership_payment_status text not null default 'unknown',
+  add column if not exists membership_next_payment_date date,
+  add column if not exists membership_last_payment_date date,
+  add column if not exists membership_notes text,
   add column if not exists onboarding_completed boolean not null default false,
   add column if not exists onboarding_completed_at timestamptz;
 
@@ -67,6 +74,15 @@ where players.user_id is null
   and players.email is not null
   and lower(players.email) = lower(users.email);
 
+update public.players
+set membership_id = 'OPEN-' || upper(substr(md5(id::text), 1, 8))
+where membership_id is null;
+
+update public.players
+set membership_since = current_date
+where membership_since is null
+  and club_id is not null;
+
 drop index if exists public.players_user_id_unique;
 
 create unique index players_user_id_unique
@@ -86,6 +102,12 @@ create index if not exists players_current_category_idx
 
 create index if not exists players_club_membership_status_idx
   on public.players(club_membership_status);
+
+create unique index if not exists players_membership_id_unique
+  on public.players(membership_id);
+
+create index if not exists players_membership_next_payment_idx
+  on public.players(membership_next_payment_date);
 
 create or replace function public.open_is_coach()
 returns boolean

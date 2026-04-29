@@ -4,7 +4,12 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['Special Gothic Expanded One', 'Impact', 'sans-serif'],
+        display: [
+          'Archivo Black',
+          'Special Gothic Expanded One',
+          'Impact',
+          'sans-serif',
+        ],
       },
       colors: {
         open: {
@@ -12,9 +17,9 @@ export default {
           surface: 'var(--color-open-surface)',
           light: 'var(--color-open-light)',
           border: 'var(--color-open-border)',
-          dark: 'var(--color-brand-primary)',
+          dark: 'var(--color-open-ink)',
           primary: 'var(--color-brand-primary)',
-          ink: 'var(--color-brand-primary)',
+          ink: 'var(--color-open-ink)',
           muted: 'var(--color-open-muted)',
         },
       },
