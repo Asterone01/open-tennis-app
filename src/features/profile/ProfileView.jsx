@@ -9,10 +9,13 @@ import PlayerCard from './PlayerCard'
 import PlayerProfileDetails from './PlayerProfileDetails'
 import usePlayerProfile from './usePlayerProfile'
 import PlayerTournamentStatus from '../tournaments/PlayerTournamentStatus'
+import PlayerStatsSection from './PlayerStatsSection'
+import CoachStatsSection from './CoachStatsSection'
 
 function ProfileView() {
   const avatarInputRef = useRef(null)
   const [isJoinOpen, setIsJoinOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState('perfil')
   const [club, setClub] = useState(null)
   const [recentMatches, setRecentMatches] = useState([])
   const [streakRows, setStreakRows] = useState([])
@@ -407,13 +410,46 @@ function ProfileView() {
         </div>
       </section>
 
-      {profile.clubId ? (
-        <MembershipCard club={club} profile={profileWithClub} />
-      ) : null}
+      {/* Tab bar */}
+      <div className="flex gap-2 border-b border-open-light pb-0">
+        {[
+          { id: 'perfil', label: 'Perfil' },
+          { id: 'stats', label: 'Estadísticas' },
+          ...(profile.isCoach ? [{ id: 'coach', label: 'Coach' }] : []),
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={[
+              'h-10 border-b-2 px-4 text-sm font-semibold transition',
+              activeTab === tab.id
+                ? 'border-open-ink text-open-ink'
+                : 'border-transparent text-open-muted hover:text-open-ink',
+            ].join(' ')}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      <PlayerTournamentStatus player={player} />
+      {activeTab === 'perfil' && (
+        <>
+          {profile.clubId ? (
+            <MembershipCard club={club} profile={profileWithClub} />
+          ) : null}
+          <PlayerTournamentStatus player={player} />
+          <PlayerProfileDetails profile={profileWithClub} />
+        </>
+      )}
 
-      <PlayerProfileDetails profile={profileWithClub} />
+      {activeTab === 'stats' && (
+        <PlayerStatsSection player={player} />
+      )}
+
+      {activeTab === 'coach' && profile.isCoach && (
+        <CoachStatsSection coachUserId={user?.id} />
+      )}
     </section>
   )
 }
