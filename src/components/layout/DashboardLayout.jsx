@@ -19,6 +19,7 @@ import useActiveRole from '../../hooks/useActiveRole'
 import useColorMode from '../../hooks/useColorMode'
 import useTheme from '../../hooks/useTheme'
 import usePlayerProfile from '../../features/profile/usePlayerProfile'
+import PWABanner from '../PWABanner'
 
 const playerNavItems = [
   { label: 'Inicio', to: '/dashboard', icon: Home },
@@ -69,6 +70,7 @@ function DashboardLayout() {
 
   return (
     <div className="min-h-screen bg-open-bg text-open-ink">
+      <PWABanner />
       <header className="sticky top-0 z-30 border-b border-open-light bg-open-surface">
         <div className="flex h-16 items-center justify-between px-5 md:px-8">
           <NavLink
