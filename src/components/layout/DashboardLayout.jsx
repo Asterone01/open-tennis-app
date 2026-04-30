@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import {
   Bell,
   Check,
+  Dumbbell,
   Home,
   ListOrdered,
   LogOut,
@@ -28,6 +29,15 @@ const playerNavItems = [
   { label: 'Perfil', to: '/profile', icon: User },
 ]
 
+const coachNavItems = [
+  { label: 'Inicio', to: '/dashboard', icon: Home },
+  { label: 'Ranking', to: '/ranking', icon: ListOrdered },
+  { label: 'Entreno', to: '/entrenamientos', icon: Dumbbell },
+  { label: 'Torneos', to: '/tournaments', icon: Trophy },
+  { label: 'Canchas', to: '/canchas', icon: MapPin },
+  { label: 'Perfil', to: '/profile', icon: User },
+]
+
 const managerNavItems = [
   { label: 'Inicio', to: '/dashboard', icon: Home },
   { label: 'Ranking', to: '/ranking', icon: ListOrdered },
@@ -44,7 +54,8 @@ function DashboardLayout() {
     profile.role === 'coach' ? 'coach' : 'player',
   )
   const isManager = profile.role === 'manager'
-  const navItems = isManager ? managerNavItems : playerNavItems
+  const isCoachMode = profile.isCoach && activeRole === 'coach'
+  const navItems = isManager ? managerNavItems : isCoachMode ? coachNavItems : playerNavItems
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
