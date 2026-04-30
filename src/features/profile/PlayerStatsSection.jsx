@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
 const MONTHS_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
@@ -20,7 +21,10 @@ export default function PlayerStatsSection({ player }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!player?.id) { setIsLoading(false); return }
+    if (!player?.id) {
+      const timer = window.setTimeout(() => setIsLoading(false), 0)
+      return () => window.clearTimeout(timer)
+    }
     const pid = String(player.id)
 
     Promise.all([
@@ -39,7 +43,7 @@ export default function PlayerStatsSection({ player }) {
         .limit(60),
       supabase
         .from('tournament_trophies')
-        .select('tournament_title, won_at, category, age_group')
+        .select('id, tournament_title, won_at, category, age_group')
         .eq('player_id', pid)
         .order('won_at', { ascending: false }),
       supabase
@@ -214,7 +218,11 @@ export default function PlayerStatsSection({ player }) {
           {trophies.length > 0 && (
             <div className="mt-4 grid gap-2">
               {trophies.map((t, i) => (
-                <div key={i} className="flex items-center gap-3 border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-800 dark:bg-amber-900/20">
+                <Link
+                  key={t.id || i}
+                  to={`/trophies/${t.id}`}
+                  className="flex items-center gap-3 border border-amber-200 bg-amber-50 px-3 py-2 transition hover:border-open-primary dark:border-amber-800 dark:bg-amber-900/20"
+                >
                   <span className="text-lg">🏆</span>
                   <div>
                     <p className="text-sm font-semibold text-open-ink">{t.tournament_title}</p>
@@ -223,7 +231,7 @@ export default function PlayerStatsSection({ player }) {
                       {t.category ? ` · Cat. ${t.category}` : ''}
                     </p>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

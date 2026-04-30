@@ -46,6 +46,9 @@ Build OPEN as a mobile-first PWA for tennis communities with role-based experien
 - Friendly match confirmation now updates match, win, and loss streaks and surfaces them in the player profile.
 - Coach evaluation is now a guided floating modal with criteria, controlled stat deltas, reason selection, and required justification stored in XP History metadata.
 - Coach evaluations create in-app notifications for the evaluated player, visible through the dashboard notification bell.
+- Social Feed is now shared through a layout-level provider, loads persisted club posts, shows load errors, and listens to realtime `feed_posts` inserts/updates/deletes.
+- Tournament champions now generate seasonal digital trophies, and trophy wins are published to the club feed.
+- Trophy detail route `/trophies/:trophyId` is in place with winner personalization, custom message, color presets, photo toggle, link sharing, and downloadable card HTML.
 - Vercel deployment is prepared with `vercel.json` SPA rewrites.
 
 ## Supabase SQL Files
@@ -58,6 +61,9 @@ Build OPEN as a mobile-first PWA for tennis communities with role-based experien
 - `supabase/player_identity_schema.sql`: adds core identity, age group, suggested/current category, membership status, and onboarding completion fields to `players`.
 - `supabase/players_access_policies.sql`: adds required player link columns (`user_id`, `club_id`, `is_coach`) when missing, backfills user links by email, then enables authenticated player reads and role-based updates for self, managers, and coaches.
 - `supabase/notifications_schema.sql`: creates in-app notifications with user read/update policies and authenticated insert support.
+- `supabase/feed_schema.sql`: creates social feed posts and reactions.
+- `supabase/feed_reactions_update.sql`: adds feed reaction types, image URL, and realtime publication for feed tables.
+- `supabase/tournament_trophies_schema.sql`: creates digital trophies and stores winner personalization fields.
 
 ## Important Notes
 
@@ -69,12 +75,11 @@ Build OPEN as a mobile-first PWA for tennis communities with role-based experien
 
 ## Next Logical Step
 
-Apply and test the new identity/onboarding base:
+Apply and test the trophy/feed completion path:
 
-1. Run `supabase/player_identity_schema.sql` after `clubs_schema.sql`.
-2. Re-run `supabase/players_access_policies.sql` so the consolidated policy file has every required column.
-3. Test player, coach, and manager registration from the extended onboarding.
-4. Confirm club requests appear as pending, then approve them from the manager/coach player list.
-5. Run `supabase/notifications_schema.sql`.
-6. Test one real coach evaluation and verify the XP History metadata plus the player's notification bell.
-7. Authorize external deployment to Vercel, then run `npx.cmd vercel --prod --yes` or connect the repository from Vercel Dashboard.
+1. Run `supabase/tournament_trophies_schema.sql` so trophy personalization columns exist.
+2. Re-run `supabase/feed_reactions_update.sql` if realtime feed is not already active in Supabase.
+3. Complete a real tournament final and confirm the champion receives a trophy.
+4. Open `/trophies/:trophyId`, personalize the card, copy/share/download it, and confirm the profile trophy link works.
+5. Confirm the champion post appears in the Feed for other club profiles.
+6. Then continue with the next roadmap block: richer notifications/push delivery or external deployment to Vercel.

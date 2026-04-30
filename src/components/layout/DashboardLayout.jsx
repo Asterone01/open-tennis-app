@@ -24,7 +24,7 @@ import useTheme from '../../hooks/useTheme'
 import usePlayerProfile from '../../features/profile/usePlayerProfile'
 import PWABanner from '../PWABanner'
 import UserSettingsPanel from './UserSettingsPanel'
-import { FeedProvider } from '../../features/feed/FeedContext'
+import FeedProvider from '../../features/feed/FeedProvider'
 
 const playerNavItems = [
   { label: 'Inicio',    to: '/dashboard',     icon: Home },
@@ -259,7 +259,11 @@ function NotificationsButton() {
 
   // Reload list every time the panel opens
   useEffect(() => {
-    if (isOpen && userId) load(userId)
+    if (!isOpen || !userId) return undefined
+    const timer = window.setTimeout(() => {
+      load(userId)
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [isOpen, userId])
 
   const unreadCount = notifications.filter((n) => !n.read_at).length

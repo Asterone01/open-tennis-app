@@ -20,7 +20,7 @@ import {
 import { supabase } from '../../lib/supabase'
 import usePlayerProfile from '../profile/usePlayerProfile'
 import useManagerClub from '../../hooks/useManagerClub'
-import { useFeed } from './FeedContext'
+import { useFeed } from './useFeed'
 
 // ─── Type config ──────────────────────────────────────────────────────────────
 
@@ -71,8 +71,8 @@ export default function FeedView() {
   const clubId = profile?.clubId || managerClubId
 
   const {
-    posts, myReactions, tournaments, communityStats, isLoading,
-    userId, react, deletePost, addPost,
+    posts, myReactions, tournaments, communityStats, isLoading, error,
+    userId, reloadFeed, react, deletePost, addPost,
   } = useFeed()
 
   const [filter, setFilter]   = useState('all')
@@ -129,7 +129,9 @@ export default function FeedView() {
         </div>
 
         {/* Posts */}
-        {isLoading ? (
+        {error ? (
+          <FeedError message={error} onRetry={reloadFeed} />
+        ) : isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => <SkeletonPost key={i} />)}
           </div>
@@ -691,6 +693,22 @@ function EmptyState({ filter, isStaff, onCompose }) {
           <Plus size={14} strokeWidth={2.5} /> Publicar ahora
         </button>
       )}
+    </div>
+  )
+}
+
+function FeedError({ message, onRetry }) {
+  return (
+    <div className="border border-red-100 bg-red-50 px-4 py-5">
+      <p className="text-sm font-semibold text-red-700">No se pudo cargar el feed.</p>
+      <p className="mt-1 text-xs text-red-600">{message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-3 bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700"
+      >
+        Reintentar
+      </button>
     </div>
   )
 }

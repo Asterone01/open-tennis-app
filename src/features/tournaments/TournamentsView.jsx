@@ -651,9 +651,26 @@ function TournamentsView() {
         user_id: winnerUserRow.data?.user_id || null,
         tournament_title: tournament.title,
         club_name: clubData?.data?.name || '',
+        season: seasonFromDate(tournament.start_date || new Date().toISOString().slice(0, 10)),
+        background_color: seasonColorFromDate(tournament.start_date || new Date().toISOString().slice(0, 10)),
         won_at: new Date().toISOString().slice(0, 10),
         category: tournament.category || null,
         age_group: tournament.age_group || null,
+      })
+
+      const winnerName =
+        players.find((p) => String(p.id) === String(winnerId))?.full_name ||
+        'Campeon OPEN'
+
+      await supabase.from('feed_posts').insert({
+        club_id: tournament.club_id,
+        author_id: winnerUserRow.data?.user_id || tournament.created_by_user_id,
+        author_name: winnerName,
+        author_role: 'player',
+        type: 'achievement',
+        content: `${winnerName} gano ${tournament.title}. Trofeo digital desbloqueado.`,
+        event_title: `Campeon: ${winnerName}`,
+        tournament_id: tournament.id,
       })
 
       // Close tournament
@@ -1342,7 +1359,6 @@ function BracketPreview({
           {seedingPhase && (
             <SeedingEditor
               isSaving={isSaving}
-              players={players}
               seedOrder={pendingSeedOrder}
               tournament={tournament}
               onChange={onSeedOrderChange}
@@ -1428,7 +1444,6 @@ function TournamentWorkspaceView({
         isSaving={isSaving}
         matches={matches}
         playerMap={playerMap}
-        players={players}
         onRecordResult={onRecordResult}
         onSelectResultMatch={onSelectResultMatch}
       />
@@ -1508,7 +1523,7 @@ function TournamentOverviewView({ entries, matches, standings, tournament }) {
   )
 }
 
-function SeedingEditor({ isSaving, players, seedOrder, tournament, onChange, onConfirm, onCancel }) {
+function SeedingEditor({ isSaving, seedOrder, tournament, onChange, onConfirm, onCancel }) {
   const autoSeed = () => {
     const sorted = [...seedOrder].sort((a, b) => (b.level - a.level) || (b.xp - a.xp))
     onChange(sorted)
@@ -1600,7 +1615,6 @@ function BracketDrawView({
   isSaving,
   matches,
   playerMap,
-  players,
   onRecordResult,
   onSelectResultMatch,
 }) {
@@ -1620,7 +1634,6 @@ function BracketDrawView({
               isSaving={isSaving}
               match={match}
               playerMap={playerMap}
-              players={players}
               onRecordResult={onRecordResult}
               onSelectResultMatch={onSelectResultMatch}
             />
@@ -1644,7 +1657,6 @@ function BracketDrawView({
                 isSaving={isSaving}
                 match={match}
                 playerMap={playerMap}
-                players={players}
                 onRecordResult={onRecordResult}
                 onSelectResultMatch={onSelectResultMatch}
               />
@@ -1861,19 +1873,6 @@ function MetricCard({ label, value }) {
   )
 }
 
-function StandingRow({ index, row }) {
-  return (
-    <div className="grid grid-cols-[2rem_1fr_repeat(4,2.8rem)] items-center gap-2 border border-open-light bg-open-surface px-3 py-2 text-sm">
-      <span className="font-semibold text-open-muted">#{index + 1}</span>
-      <span className="truncate font-semibold text-open-ink">{row.name}</span>
-      <span className="text-center text-open-muted">{row.played}</span>
-      <span className="text-center text-open-muted">{row.wins}</span>
-      <span className="text-center text-open-muted">{row.losses}</span>
-      <span className="text-center font-semibold text-open-ink">{row.points}</span>
-    </div>
-  )
-}
-
 function EmptyTournamentState({ text }) {
   return (
     <p className="border border-open-light bg-open-bg px-4 py-5 text-sm text-open-muted">
@@ -1888,7 +1887,6 @@ function TournamentMatchRow({
   isSaving,
   match,
   playerMap,
-  players,
   onRecordResult,
   onSelectResultMatch,
 }) {
@@ -2423,6 +2421,24 @@ function getAdvanceXP(roundNumber, totalRounds) {
   if (fromEnd === 1) return { winner: 80, loser: 0 }
   if (fromEnd === 2) return { winner: 60, loser: 0 }
   return { winner: 40, loser: 0 }
+}
+
+function seasonFromDate(dateValue) {
+  const month = new Date(`${dateValue}T00:00:00`).getMonth() + 1
+  if (month >= 3 && month <= 5) return 'spring'
+  if (month >= 6 && month <= 8) return 'summer'
+  if (month >= 9 && month <= 11) return 'autumn'
+  return 'winter'
+}
+
+function seasonColorFromDate(dateValue) {
+  const colors = {
+    spring: '#2d7a4a',
+    summer: '#f5a623',
+    autumn: '#e67e22',
+    winter: '#3498db',
+  }
+  return colors[seasonFromDate(dateValue)]
 }
 
 export default TournamentsView

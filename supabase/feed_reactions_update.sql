@@ -44,3 +44,24 @@ DROP TRIGGER IF EXISTS trg_feed_likes_count ON public.feed_likes;
 CREATE TRIGGER trg_feed_likes_count
   AFTER INSERT OR DELETE ON public.feed_likes
   FOR EACH ROW EXECUTE FUNCTION public.feed_likes_count_sync();
+
+-- Enable Supabase Realtime for feed changes.
+-- This is required for other profiles to see new posts/reaction counts without reloading.
+ALTER TABLE public.feed_posts REPLICA IDENTITY FULL;
+ALTER TABLE public.feed_likes REPLICA IDENTITY FULL;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.feed_posts;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.feed_likes;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+  WHEN undefined_object THEN NULL;
+END $$;

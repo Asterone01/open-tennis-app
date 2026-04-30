@@ -9,6 +9,7 @@ import LiveJudgeView from './features/competition/LiveJudgeView'
 import RankingView from './features/competition/RankingView'
 import DashboardRouter from './features/dashboard/DashboardRouter'
 import PlayerProfileView from './features/profile/PlayerProfileView'
+import TrophyDetailView from './features/profile/TrophyDetailView'
 import MembershipsView from './features/admin/MembershipsView'
 import CanchasView from './features/admin/CanchasView'
 import CourtReservationsView from './features/courts/CourtReservationsView'
@@ -109,6 +110,7 @@ function App() {
           <Route path="h2h/:opponentId" element={<FaceToFaceView />} />
           <Route path="profile" element={<ProfileView />} />
           <Route path="players/:playerId" element={<PlayerProfileView />} />
+          <Route path="trophies/:trophyId" element={<TrophyDetailView />} />
           <Route path="memberships" element={<MembershipsView />} />
           <Route path="membresias" element={<MembershipsView />} />
           <Route path="canchas" element={<CanchasRoute />} />

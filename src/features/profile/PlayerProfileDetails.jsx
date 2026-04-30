@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Flame, Lock, Medal, Swords, Trophy, X } from 'lucide-react'
 import {
   ACHIEVEMENTS_CATALOG,
@@ -316,7 +317,11 @@ function TrophyList({ trophies }) {
   return (
     <div className="mt-5 grid gap-3">
       {trophies.map((trophy) => (
-        <div key={trophy.id} className="flex items-center gap-3 border border-open-ink bg-open-ink p-3">
+        <Link
+          key={trophy.id}
+          to={`/trophies/${trophy.id}`}
+          className="flex items-center gap-3 border border-open-ink bg-open-ink p-3 transition hover:opacity-90"
+        >
           <div className="grid h-11 w-11 shrink-0 place-items-center border border-white/20 bg-white/10">
             <Trophy size={18} strokeWidth={1.8} className="text-white" />
           </div>
@@ -340,7 +345,7 @@ function TrophyList({ trophies }) {
               </p>
             ) : null}
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   )

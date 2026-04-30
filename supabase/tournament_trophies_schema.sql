@@ -16,9 +16,15 @@ create table if not exists public.tournament_trophies (
   category      text,
   age_group     text,
   custom_message text,      -- max 50 chars, set by winner
+  background_color text      not null default '#0D0D0F',
+  include_photo boolean      not null default true,
   created_at    timestamptz not null default now(),
   unique(tournament_id, player_id)
 );
+
+alter table public.tournament_trophies
+  add column if not exists background_color text not null default '#0D0D0F',
+  add column if not exists include_photo boolean not null default true;
 
 alter table public.tournament_trophies enable row level security;
 
