@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(npx.cmd vite *)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(git push *)",
+      "Bash(npm run *)",
+      "Bash(npm install *)"
     ]
   }
 }

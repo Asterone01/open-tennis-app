@@ -16,6 +16,8 @@ import TrainingSessionsView from './features/coach/TrainingSessionsView'
 import PlayerTrainingView from './features/coach/PlayerTrainingView'
 import ProfileView from './features/profile/ProfileView'
 import TournamentsView from './features/tournaments/TournamentsView'
+import ManagerReportView from './features/manager/ManagerReportView'
+import FeedView from './features/feed/FeedView'
 import useActiveRole from './hooks/useActiveRole'
 import usePlayerProfile from './features/profile/usePlayerProfile'
 import { supabase } from './lib/supabase'
@@ -108,8 +110,11 @@ function App() {
           <Route path="profile" element={<ProfileView />} />
           <Route path="players/:playerId" element={<PlayerProfileView />} />
           <Route path="memberships" element={<MembershipsView />} />
+          <Route path="membresias" element={<MembershipsView />} />
           <Route path="canchas" element={<CanchasRoute />} />
           <Route path="entrenamientos" element={<TrainingRoute />} />
+          <Route path="feed" element={<FeedView />} />
+          <Route path="reporte" element={<ManagerReportView />} />
         </Route>
         <Route
           path="*"

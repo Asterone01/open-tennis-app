@@ -11,6 +11,7 @@ import usePlayerProfile from './usePlayerProfile'
 import PlayerTournamentStatus from '../tournaments/PlayerTournamentStatus'
 import PlayerStatsSection from './PlayerStatsSection'
 import CoachStatsSection from './CoachStatsSection'
+import MembershipsView from '../admin/MembershipsView'
 
 function ProfileView() {
   const avatarInputRef = useRef(null)
@@ -412,11 +413,14 @@ function ProfileView() {
 
       {/* Tab bar */}
       <div className="flex gap-2 border-b border-open-light pb-0">
-        {[
-          { id: 'perfil', label: 'Perfil' },
-          { id: 'stats', label: 'Estadísticas' },
-          ...(profile.isCoach ? [{ id: 'coach', label: 'Coach' }] : []),
-        ].map((tab) => (
+        {(profile.role === 'manager'
+          ? [{ id: 'perfil', label: 'Perfil' }, { id: 'membresias', label: 'Membresías' }]
+          : [
+              { id: 'perfil', label: 'Perfil' },
+              { id: 'stats', label: 'Estadísticas' },
+              ...(profile.isCoach ? [{ id: 'coach', label: 'Coach' }] : []),
+            ]
+        ).map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -438,17 +442,21 @@ function ProfileView() {
           {profile.clubId ? (
             <MembershipCard club={club} profile={profileWithClub} />
           ) : null}
-          <PlayerTournamentStatus player={player} />
+          {profile.role !== 'manager' && <PlayerTournamentStatus player={player} />}
           <PlayerProfileDetails profile={profileWithClub} />
         </>
       )}
 
-      {activeTab === 'stats' && (
+      {activeTab === 'stats' && profile.role !== 'manager' && (
         <PlayerStatsSection player={player} />
       )}
 
       {activeTab === 'coach' && profile.isCoach && (
         <CoachStatsSection coachUserId={user?.id} />
+      )}
+
+      {activeTab === 'membresias' && profile.role === 'manager' && (
+        <MembershipsView embedded />
       )}
     </section>
   )

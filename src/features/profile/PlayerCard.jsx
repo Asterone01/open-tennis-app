@@ -1,4 +1,5 @@
-import { Camera } from 'lucide-react'
+import { useState } from 'react'
+import { Camera, ChevronDown, ChevronUp, Shield, Trophy, User } from 'lucide-react'
 import {
   PolarAngleAxis,
   PolarGrid,
@@ -8,224 +9,309 @@ import {
 } from 'recharts'
 import { calculateLevelFromXp, getNextLevelXp } from '../gamification/xpLedger'
 
-function PlayerCard({
-  profile,
-  canEditAvatar = false,
-  isAvatarUploading = false,
-  onAvatarClick,
-}) {
-  const fullName = profile?.fullName || 'Jugador OPEN'
-  const initials = fullName
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
-  const xp = profile?.xp || 0
-  const level = calculateLevelFromXp(xp)
-  const category =
-    profile?.currentCategory || profile?.suggestedCategory || 'Sin categoria'
-  const ageGroup = formatAgeGroup(profile?.ageGroup)
-  const membership = formatMembership(profile?.clubMembershipStatus)
-  const clubName = profile?.clubName || 'Sin club'
-  const cardColor = resolveCardColor(profile)
-  const playerSkills = buildRadarData(profile)
-  const rating = calculateRating(playerSkills)
-  const nextLevelXp = getNextLevelXp(level)
-  const progress = Math.min(Math.round((xp / nextLevelXp) * 100), 100)
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-  return (
-    <article
-      className="relative overflow-hidden border border-black/20 p-6 text-white"
-      style={{ backgroundColor: cardColor }}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-black/35" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-white/10" />
+function resolveCardColor(profile) {
+  return profile?.playerCardColor || profile?.clubPrimaryColor || '#0D0D0F'
+}
 
-      <header className="relative z-10 flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-4">
-          <button
-            type="button"
-            onClick={onAvatarClick}
-            disabled={!canEditAvatar || isAvatarUploading}
-            className={[
-              'relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-full border border-white/15 bg-white/10 text-xl font-semibold',
-              canEditAvatar
-                ? 'cursor-pointer transition hover:border-white/60'
-                : 'cursor-default',
-            ].join(' ')}
-            aria-label={
-              canEditAvatar ? 'Cambiar foto de perfil' : 'Foto de perfil'
-            }
-          >
-            {profile?.avatarUrl ? (
-              <img
-                src={profile.avatarUrl}
-                alt=""
-                className="h-full w-full rounded-full object-cover"
-              />
-            ) : (
-              initials || 'OP'
-            )}
-            {canEditAvatar ? (
-              <span className="absolute inset-x-0 bottom-0 grid h-6 place-items-center bg-black/55 text-white">
-                <Camera size={13} strokeWidth={1.8} />
-              </span>
-            ) : null}
-            {isAvatarUploading ? (
-              <span className="absolute inset-0 grid place-items-center bg-black/60 text-[10px] font-semibold uppercase tracking-[0.12em]">
-                Subiendo
-              </span>
-            ) : null}
-          </button>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
-              Player Card
-            </p>
-            <h2 className="mt-2 truncate text-2xl font-semibold text-white">
-              {fullName}
-            </h2>
-            <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/65">
-              <span className="border border-white/15 px-2 py-1">
-                {clubName}
-              </span>
-              <span className="border border-white/15 px-2 py-1">
-                Cat. {category}
-              </span>
-              <span className="border border-white/15 px-2 py-1">
-                {ageGroup}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="shrink-0 border border-white/15 bg-white px-4 py-3 text-center text-[#0D0D0F]">
-          <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-black/45">
-            Level
-          </span>
-          <strong className="block font-display text-xl font-black leading-none tracking-[0.08em]">
-            LVL {level}
-          </strong>
-        </div>
-      </header>
-
-      <div className="relative z-10 mt-8 grid gap-3 sm:grid-cols-2">
-        <HeroMetric
-          label="XP Experiencia"
-          value={`${xp.toLocaleString()} pts`}
-          detail={`${progress}% hacia Nivel ${level + 1}`}
-        />
-        <HeroMetric
-          label={`Rating Cat. ${category}`}
-          value={`${rating} / 100`}
-          detail="Actualizado por evaluacion"
-        />
-      </div>
-
-      <div className="relative z-10 mt-6 h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={playerSkills} outerRadius="74%">
-            <PolarGrid stroke="#FFFFFF" strokeOpacity={0.18} />
-            <PolarAngleAxis
-              dataKey="skill"
-              tick={{
-                fill: 'rgba(255,255,255,0.72)',
-                fontSize: 12,
-                fontWeight: 600,
-              }}
-            />
-            <Radar
-              dataKey="value"
-              stroke="#FFFFFF"
-              strokeOpacity={0.9}
-              strokeWidth={1.5}
-              fill="#FFFFFF"
-              fillOpacity={0.1}
-            />
-          </RadarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <footer className="relative z-10 mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 sm:grid-cols-4">
-        <Metric label="Club" value={clubName} />
-        <Metric label="Membresia" value={membership} />
-        <Metric label="Ranking" value={profile?.ranking || '--'} />
-        <Metric label="Racha" value={`${profile?.currentStreak || 0} dias`} />
-      </footer>
-    </article>
-  )
+function hexToRgb(hex) {
+  const clean = hex.replace('#', '')
+  const r = parseInt(clean.substring(0, 2), 16)
+  const g = parseInt(clean.substring(2, 4), 16)
+  const b = parseInt(clean.substring(4, 6), 16)
+  return `${r},${g},${b}`
 }
 
 function buildRadarData(profile) {
   return [
-    { skill: 'Derecha', value: profile?.stats?.stat_derecha ?? 50 },
-    { skill: 'Reves', value: profile?.stats?.stat_reves ?? 50 },
-    { skill: 'Saque', value: profile?.stats?.stat_saque ?? 50 },
-    { skill: 'Volea', value: profile?.stats?.stat_volea ?? 50 },
+    { skill: 'Derecha',   value: profile?.stats?.stat_derecha   ?? 50 },
+    { skill: 'Reves',     value: profile?.stats?.stat_reves     ?? 50 },
+    { skill: 'Saque',     value: profile?.stats?.stat_saque     ?? 50 },
+    { skill: 'Volea',     value: profile?.stats?.stat_volea     ?? 50 },
     { skill: 'Movilidad', value: profile?.stats?.stat_movilidad ?? 50 },
-    { skill: 'Slice', value: profile?.stats?.stat_slice ?? 50 },
+    { skill: 'Slice',     value: profile?.stats?.stat_slice     ?? 50 },
   ]
 }
 
-function resolveCardColor(profile) {
-  if (profile?.playerCardColor) {
-    return profile.playerCardColor
-  }
-
-  if (profile?.clubPrimaryColor) {
-    return profile.clubPrimaryColor
-  }
-
-  return '#0D0D0F'
-}
-
 function calculateRating(skills) {
-  const total = skills.reduce((sum, skill) => sum + skill.value, 0)
-  return Math.round(total / skills.length)
+  return Math.round(skills.reduce((s, sk) => s + sk.value, 0) / skills.length)
 }
 
-function formatAgeGroup(value) {
-  const labels = {
-    junior: 'Junior',
-    juvenil: 'Juvenil',
-    adulto: 'Adulto',
-    senior: 'Senior',
-  }
-
-  return labels[value] || 'Sin grupo'
+function formatAgeGroup(v) {
+  return { junior: 'Junior', juvenil: 'Juvenil', adulto: 'Adulto', senior: 'Senior' }[v] || ''
 }
 
-function formatMembership(value) {
-  const labels = {
-    unassigned: 'Sin club',
-    pending: 'Pendiente',
-    approved: 'Aprobada',
-    rejected: 'Rechazada',
-  }
-
-  return labels[value] || 'Sin club'
+function formatMembership(v) {
+  return { unassigned: 'Sin club', pending: 'Pendiente', approved: 'Aprobada', rejected: 'Rechazada' }[v] || '—'
 }
 
-function Metric({ label, value }) {
+function getRole(profile) {
+  if (profile?.role === 'manager') return 'manager'
+  if (profile?.isCoach) return 'coach'
+  return 'player'
+}
+
+function initials(name) {
+  return (name || 'OP')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase()
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false, onAvatarClick }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const role       = getRole(profile)
+  const fullName   = profile?.fullName || 'Jugador OPEN'
+  const xp         = profile?.xp || 0
+  const level      = calculateLevelFromXp(xp)
+  const nextXp     = getNextLevelXp(level)
+  const progress   = Math.min(Math.round((xp / nextXp) * 100), 100)
+  const category   = profile?.currentCategory || profile?.suggestedCategory || ''
+  const ageGroup   = formatAgeGroup(profile?.ageGroup)
+  const clubName   = profile?.clubName || 'Sin club'
+  const membership = formatMembership(profile?.clubMembershipStatus)
+  const cardColor  = resolveCardColor(profile)
+  const rgb        = hexToRgb(cardColor.startsWith('#') ? cardColor : '#0D0D0F')
+
+  const skills  = buildRadarData(profile)
+  const rating  = calculateRating(skills)
+  const hasAvatar = !!profile?.avatarUrl
+
+  // Role badge config
+  const roleMeta = {
+    player:  { label: 'Player',  icon: User,   color: 'bg-white/15 text-white' },
+    coach:   { label: 'Coach',   icon: Shield, color: 'bg-amber-400/20 text-amber-300' },
+    manager: { label: 'Manager', icon: Trophy, color: 'bg-blue-400/20 text-blue-300' },
+  }[role]
+  const RoleIcon = roleMeta.icon
+
   return (
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/40">
-        {label}
-      </p>
-      <p className="mt-1 text-lg font-semibold text-white">{value}</p>
-    </div>
+    <article
+      className="relative overflow-hidden border border-black/20 text-white"
+      style={{ backgroundColor: cardColor }}
+    >
+      {/* ── Texture overlay ── */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/20" />
+
+      {/* ── HERO ── */}
+      <div className="relative min-h-[13rem] overflow-hidden">
+
+        {/* Avatar — bleeds from right with gradient mask */}
+        {hasAvatar ? (
+          <>
+            <img
+              src={profile.avatarUrl}
+              alt=""
+              className="absolute right-0 top-0 h-full w-3/5 object-cover object-center md:w-1/2"
+              style={{ maskImage: 'linear-gradient(to left, black 40%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to left, black 40%, transparent 100%)' }}
+            />
+            {/* Extra gradient so text is always readable */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{ background: `linear-gradient(to right, rgb(${rgb}) 45%, rgba(${rgb},0.6) 70%, transparent 100%)` }}
+            />
+          </>
+        ) : (
+          /* No avatar — decorative initials watermark */
+          <div
+            className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 select-none text-[7rem] font-black leading-none tracking-tighter"
+            style={{ color: `rgba(${rgb === '13,13,15' ? '255,255,255' : rgb},0.08)` }}
+          >
+            {initials(fullName)}
+          </div>
+        )}
+
+        {/* Hero content */}
+        <div className="relative z-10 flex h-full flex-col justify-between gap-4 p-5 md:p-6">
+          {/* Top row: role badge + level + avatar button */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className={`flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${roleMeta.color}`}>
+                <RoleIcon size={11} strokeWidth={2} />
+                {roleMeta.label}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Level pill */}
+              <div className="border border-white/20 bg-white px-3 py-1.5 text-center text-[#0D0D0F]">
+                <span className="block text-[9px] font-bold uppercase tracking-[0.2em] text-black/40">Level</span>
+                <strong className="block font-display text-base font-black leading-tight tracking-wider">LVL {level}</strong>
+              </div>
+
+              {/* Avatar button */}
+              <button
+                type="button"
+                onClick={onAvatarClick}
+                disabled={!canEditAvatar || isAvatarUploading}
+                className={[
+                  'relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border border-white/20 bg-white/10 text-sm font-bold',
+                  canEditAvatar ? 'cursor-pointer hover:border-white/50 transition' : 'cursor-default',
+                ].join(' ')}
+                aria-label={canEditAvatar ? 'Cambiar foto de perfil' : undefined}
+              >
+                {hasAvatar ? (
+                  <img src={profile.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" />
+                ) : (
+                  <span>{initials(fullName)}</span>
+                )}
+                {canEditAvatar && (
+                  <span className="absolute inset-x-0 bottom-0 grid h-5 place-items-center bg-black/50">
+                    <Camera size={11} strokeWidth={1.8} />
+                  </span>
+                )}
+                {isAvatarUploading && (
+                  <span className="absolute inset-0 grid place-items-center bg-black/60 text-[9px] font-semibold uppercase tracking-widest">
+                    ...
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Name + tags */}
+          <div>
+            <h2 className="text-2xl font-black leading-tight tracking-tight text-white drop-shadow md:text-3xl">
+              {fullName}
+            </h2>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <Tag>{clubName}</Tag>
+              {role !== 'manager' && category ? <Tag>Cat. {category}</Tag> : null}
+              {role !== 'manager' && ageGroup ? <Tag>{ageGroup}</Tag> : null}
+              {role === 'manager' ? <Tag>Manager</Tag> : null}
+            </div>
+          </div>
+        </div>
+
+        {/* XP progress bar at bottom of hero */}
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-white/10">
+          <div
+            className="h-full bg-white/60 transition-all duration-700"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* ── METRICS ROW ── */}
+      <div className="relative z-10 grid grid-cols-2 gap-px border-t border-white/10 bg-white/5">
+        {role === 'manager' ? (
+          <>
+            <HeroMetric label="Club" value={clubName} detail="Tu organización" />
+            <HeroMetric label="Membresía" value={membership} detail="Estado actual" />
+          </>
+        ) : (
+          <>
+            <HeroMetric label="XP Experiencia" value={`${xp.toLocaleString()} pts`} detail={`${progress}% hacia Nivel ${level + 1}`} />
+            <HeroMetric label={`Rating${category ? ` Cat. ${category}` : ''}`} value={`${rating} / 100`} detail="Actualizado por evaluación" />
+          </>
+        )}
+      </div>
+
+      {/* ── EXPAND TOGGLE ── */}
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="relative z-10 flex w-full items-center justify-center gap-2 border-t border-white/10 bg-white/5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50 transition hover:bg-white/10 hover:text-white/80"
+      >
+        {expanded ? (
+          <>Menos detalles <ChevronUp size={13} strokeWidth={2} /></>
+        ) : (
+          <>Ver habilidades y estadísticas <ChevronDown size={13} strokeWidth={2} /></>
+        )}
+      </button>
+
+      {/* ── EXPANDED SECTION ── */}
+      {expanded && (
+        <div className="relative z-10 border-t border-white/10">
+          {/* Radar chart — players and coaches only */}
+          {role !== 'manager' && (
+            <div className="h-64 px-4 pt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={skills} outerRadius="72%">
+                  <PolarGrid stroke="#FFFFFF" strokeOpacity={0.15} />
+                  <PolarAngleAxis
+                    dataKey="skill"
+                    tick={{ fill: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: 600 }}
+                  />
+                  <Radar
+                    dataKey="value"
+                    stroke="#FFFFFF"
+                    strokeOpacity={0.9}
+                    strokeWidth={1.5}
+                    fill="#FFFFFF"
+                    fillOpacity={0.12}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Footer metrics — role-specific */}
+          <div className="grid gap-px border-t border-white/10 bg-white/5 sm:grid-cols-4">
+            {role === 'player' && (
+              <>
+                <FooterMetric label="Club"      value={clubName} />
+                <FooterMetric label="Membresía" value={membership} />
+                <FooterMetric label="Ranking"   value={profile?.ranking || '--'} />
+                <FooterMetric label="Racha"     value={`${profile?.currentStreak || 0} días`} />
+              </>
+            )}
+            {role === 'coach' && (
+              <>
+                <FooterMetric label="Club"      value={clubName} />
+                <FooterMetric label="Membresía" value={membership} />
+                <FooterMetric label="Racha"     value={`${profile?.currentStreak || 0} días`} />
+                <FooterMetric label="XP total"  value={`${xp.toLocaleString()} pts`} />
+              </>
+            )}
+            {role === 'manager' && (
+              <>
+                <FooterMetric label="Club"      value={clubName} />
+                <FooterMetric label="Membresía" value={membership} />
+                <FooterMetric label="Nivel"     value={`LVL ${level}`} />
+                <FooterMetric label="XP"        value={`${xp.toLocaleString()} pts`} />
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </article>
+  )
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function Tag({ children }) {
+  return (
+    <span className="border border-white/15 bg-white/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/65">
+      {children}
+    </span>
   )
 }
 
 function HeroMetric({ label, value, detail }) {
   return (
-    <div className="border border-white/10 bg-white/5 p-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/45">
-        {label}
-      </p>
-      <p className="mt-3 font-display text-2xl italic text-white">{value}</p>
-      <p className="mt-2 text-xs font-semibold text-white/45">{detail}</p>
+    <div className="p-4 md:p-5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">{label}</p>
+      <p className="mt-2 text-xl font-black tracking-tight text-white">{value}</p>
+      <p className="mt-1 text-[11px] text-white/40">{detail}</p>
+    </div>
+  )
+}
+
+function FooterMetric({ label, value }) {
+  return (
+    <div className="p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">{label}</p>
+      <p className="mt-1.5 text-base font-bold text-white">{value}</p>
     </div>
   )
 }

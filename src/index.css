@@ -99,6 +99,11 @@ textarea {
     border-radius: var(--open-radius-panel);
   }
 
+  /* Shared form field style used across modals and forms */
+  .field {
+    @apply w-full border border-open-light bg-open-bg px-3 py-2.5 text-sm text-open-ink placeholder:text-open-muted focus:border-open-ink focus:outline-none;
+  }
+
   .open-logo {
     display: inline-block;
     font-family: "Archivo Black", "Special Gothic Expanded One", Impact, sans-serif;

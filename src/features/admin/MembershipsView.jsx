@@ -17,7 +17,7 @@ const STATUS_STYLES = {
   unknown: 'border-open-light text-open-muted',
 }
 
-function MembershipsView() {
+function MembershipsView({ embedded = false }) {
   const { clubId, isLoading: isClubLoading } = useManagerClub()
   const [players, setPlayers] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -126,27 +126,29 @@ function MembershipsView() {
 
   return (
     <section className="grid gap-6">
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
-        <div>
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-open-muted transition hover:text-open-ink"
-          >
-            <ArrowLeft size={13} strokeWidth={2} />
-            Dashboard
-          </Link>
-          <p className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-open-muted">
-            Manager
+      {/* Header — hidden when embedded inside a tab */}
+      {!embedded && (
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+          <div>
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-open-muted transition hover:text-open-ink"
+            >
+              <ArrowLeft size={13} strokeWidth={2} />
+              Dashboard
+            </Link>
+            <p className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-open-muted">
+              Manager
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-open-ink md:text-5xl">
+              Membresías
+            </h1>
+          </div>
+          <p className="max-w-md text-sm leading-6 text-open-muted">
+            Estado de pagos, planes y fechas de vencimiento por jugador.
           </p>
-          <h1 className="mt-2 text-3xl font-semibold text-open-ink md:text-5xl">
-            Membresías
-          </h1>
         </div>
-        <p className="max-w-md text-sm leading-6 text-open-muted">
-          Estado de pagos, planes y fechas de vencimiento por jugador.
-        </p>
-      </div>
+      )}
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-4">

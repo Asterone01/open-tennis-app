@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
+  BarChart2,
   Bell,
+  Calendar,
   Check,
+  CreditCard,
   Dumbbell,
   Home,
-  ListOrdered,
-  LogOut,
-  Moon,
   MapPin,
-  Swords,
+  Moon,
+  Newspaper,
+  Settings,
   Sun,
+  Swords,
   Trophy,
   User,
 } from 'lucide-react'
@@ -20,31 +23,33 @@ import useColorMode from '../../hooks/useColorMode'
 import useTheme from '../../hooks/useTheme'
 import usePlayerProfile from '../../features/profile/usePlayerProfile'
 import PWABanner from '../PWABanner'
+import UserSettingsPanel from './UserSettingsPanel'
 
 const playerNavItems = [
-  { label: 'Inicio', to: '/dashboard', icon: Home },
-  { label: 'Ranking', to: '/ranking', icon: ListOrdered },
-  { label: 'Partidos', to: '/matches', icon: Swords },
-  { label: 'Torneos', to: '/tournaments', icon: Trophy },
-  { label: 'Canchas', to: '/canchas', icon: MapPin },
-  { label: 'Perfil', to: '/profile', icon: User },
+  { label: 'Inicio',    to: '/dashboard',     icon: Home },
+  { label: 'Partidos',  to: '/matches',       icon: Swords },
+  { label: 'Torneos',   to: '/tournaments',   icon: Trophy },
+  { label: 'Canchas',   to: '/canchas',       icon: MapPin },
+  { label: 'Feed',      to: '/feed',          icon: Newspaper },
+  { label: 'Perfil',    to: '/profile',       icon: User },
 ]
 
 const coachNavItems = [
-  { label: 'Inicio', to: '/dashboard', icon: Home },
-  { label: 'Ranking', to: '/ranking', icon: ListOrdered },
-  { label: 'Entreno', to: '/entrenamientos', icon: Dumbbell },
-  { label: 'Torneos', to: '/tournaments', icon: Trophy },
-  { label: 'Canchas', to: '/canchas', icon: MapPin },
-  { label: 'Perfil', to: '/profile', icon: User },
+  { label: 'Inicio',    to: '/dashboard',     icon: Home },
+  { label: 'Partidos',  to: '/matches',       icon: Swords },
+  { label: 'Entreno',   to: '/entrenamientos',icon: Dumbbell },
+  { label: 'Canchas',   to: '/canchas',       icon: MapPin },
+  { label: 'Feed',      to: '/feed',          icon: Newspaper },
+  { label: 'Perfil',    to: '/profile',       icon: User },
 ]
 
 const managerNavItems = [
-  { label: 'Inicio', to: '/dashboard', icon: Home },
-  { label: 'Ranking', to: '/ranking', icon: ListOrdered },
-  { label: 'Torneos', to: '/tournaments', icon: Trophy },
-  { label: 'Canchas', to: '/canchas', icon: MapPin },
-  { label: 'Perfil', to: '/profile', icon: User },
+  { label: 'Inicio',      to: '/dashboard',    icon: Home },
+  { label: 'Membresías',  to: '/membresias',   icon: CreditCard },
+  { label: 'Canchas',     to: '/canchas',      icon: MapPin },
+  { label: 'Feed',        to: '/feed',         icon: Newspaper },
+  { label: 'Reporte',     to: '/reporte',      icon: BarChart2 },
+  { label: 'Perfil',      to: '/profile',      icon: User },
 ]
 
 function DashboardLayout() {
@@ -54,6 +59,7 @@ function DashboardLayout() {
   const [activeRole, setActiveRole] = useActiveRole(
     profile.role === 'coach' ? 'coach' : 'player',
   )
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const isManager = profile.role === 'manager'
   const isCoachMode = profile.isCoach && activeRole === 'coach'
   const navItems = isManager ? managerNavItems : isCoachMode ? coachNavItems : playerNavItems
@@ -72,7 +78,7 @@ function DashboardLayout() {
     <div className="min-h-screen bg-open-bg text-open-ink">
       <PWABanner />
       <header className="sticky top-0 z-30 border-b border-open-light bg-open-surface">
-        <div className="flex h-16 items-center justify-between px-5 md:px-8">
+        <div className="flex h-14 items-center justify-between px-4 md:h-16 md:px-8">
           <NavLink
             to="/dashboard"
             className="flex items-center gap-3 text-xl text-open-ink"
@@ -81,49 +87,64 @@ function DashboardLayout() {
               <img
                 src={theme.logoUrl}
                 alt={theme.clubName}
-                className="h-8 max-w-28 object-contain"
+                className="h-7 max-w-24 object-contain md:h-8 md:max-w-28"
               />
             ) : (
               <span className="open-logo">OPEN</span>
             )}
           </NavLink>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             {profile.isCoach ? (
               <button
                 type="button"
                 onClick={handleRoleSwitch}
-                className="hidden h-10 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink transition hover:border-open-primary md:block"
+                className="hidden h-9 border border-open-light bg-open-surface px-3 text-xs font-semibold text-open-ink transition hover:border-open-primary md:block md:h-10 md:text-sm"
               >
-                Cambiar a Vista {activeRole === 'coach' ? 'Jugador' : 'Coach'}
+                Vista {activeRole === 'coach' ? 'Jugador' : 'Coach'}
               </button>
             ) : null}
-            <ColorModeToggle
-              colorMode={colorMode}
-              onToggle={toggleColorMode}
-            />
+            {/* Color toggle — hidden on mobile (available in settings) */}
+            <div className="hidden md:block">
+              <ColorModeToggle colorMode={colorMode} onToggle={toggleColorMode} />
+            </div>
             <NotificationsButton />
+            {/* Settings / User button */}
             <button
               type="button"
-              onClick={handleSignOut}
-              className="hidden h-10 items-center gap-2 border border-open-light bg-open-surface px-3 text-sm font-semibold text-open-ink transition hover:border-open-ink md:flex"
+              onClick={() => setSettingsOpen(true)}
+              aria-label="Abrir ajustes"
+              className="relative grid h-9 w-9 place-items-center border border-open-light bg-open-bg text-open-ink transition hover:border-open-ink md:h-10 md:w-10"
             >
-              <LogOut size={16} strokeWidth={1.8} />
-              Salir
+              {profile?.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt=""
+                  className="h-full w-full rounded-sm object-cover"
+                />
+              ) : (
+                <User size={17} strokeWidth={1.8} />
+              )}
+              {/* Small settings indicator dot */}
+              <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full border border-open-surface bg-open-bg">
+                <Settings size={8} strokeWidth={2.5} className="text-open-muted" />
+              </span>
             </button>
-            <NavLink
-              to="/profile"
-              aria-label="Abrir perfil"
-              className="grid h-10 w-10 place-items-center border border-open-light bg-open-bg transition hover:border-open-ink"
-            >
-              <User size={18} strokeWidth={1.8} />
-            </NavLink>
           </div>
         </div>
       </header>
 
+      <UserSettingsPanel
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        profile={profile}
+        colorMode={colorMode}
+        onToggleColorMode={toggleColorMode}
+        onSignOut={handleSignOut}
+      />
+
       <div className="mx-auto grid w-full max-w-7xl md:grid-cols-[220px_1fr]">
-        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] border-r border-open-light bg-open-surface p-4 md:block">
+        <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] overflow-y-auto border-r border-open-light bg-open-surface p-4 md:top-16 md:block md:h-[calc(100vh-4rem)]">
           <nav className="grid gap-1">
             {navItems.map((item) => (
               <NavItem key={item.to} item={item} />
@@ -131,12 +152,13 @@ function DashboardLayout() {
           </nav>
         </aside>
 
-        <main className="min-h-[calc(100vh-4rem)] bg-open-bg px-5 py-6 pb-24 md:px-8 md:py-8">
+        <main className="min-h-[calc(100vh-3.5rem)] bg-open-bg px-4 py-5 pb-24 md:min-h-[calc(100vh-4rem)] md:px-8 md:py-8">
           <Outlet />
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t border-open-light bg-open-surface md:hidden">
+      {/* Mobile bottom nav */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex h-14 border-t border-open-light bg-open-surface md:hidden">
         {navItems.map((item) => (
           <NavItem key={item.to} item={item} isMobile />
         ))}
@@ -323,31 +345,34 @@ function NotificationsButton() {
                 type="button"
                 onClick={() => markAsRead(notification)}
                 className={[
-                  'grid gap-1 border-b border-open-light px-3 py-3 text-left last:border-b-0 transition hover:bg-open-bg',
-                  !notification.read_at ? 'bg-open-bg/60' : '',
+                  'flex gap-3 border-b border-open-light px-3 py-3 text-left last:border-b-0 transition hover:bg-open-bg',
+                  !notification.read_at ? 'bg-open-primary/5' : '',
                 ].join(' ')}
               >
-                <span className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-open-ink">
-                    {notification.title}
+                <NotificationTypeIcon type={notification.type} />
+                <span className="grid flex-1 gap-0.5">
+                  <span className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-semibold text-open-ink">
+                      {notification.title}
+                    </span>
+                    {notification.read_at ? (
+                      <Check
+                        size={15}
+                        strokeWidth={1.8}
+                        className="shrink-0 text-open-muted"
+                      />
+                    ) : (
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-open-primary" />
+                    )}
                   </span>
-                  {notification.read_at ? (
-                    <Check
-                      size={15}
-                      strokeWidth={1.8}
-                      className="shrink-0 text-open-muted"
-                    />
-                  ) : (
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-open-primary" />
-                  )}
-                </span>
-                {notification.body ? (
-                  <span className="text-xs leading-5 text-open-muted">
-                    {notification.body}
+                  {notification.body ? (
+                    <span className="text-xs leading-5 text-open-muted">
+                      {notification.body}
+                    </span>
+                  ) : null}
+                  <span className="text-[11px] text-open-muted">
+                    {formatRelativeTime(notification.created_at)}
                   </span>
-                ) : null}
-                <span className="text-[11px] text-open-muted">
-                  {formatRelativeTime(notification.created_at)}
                 </span>
               </button>
             ))}
@@ -355,6 +380,28 @@ function NotificationsButton() {
         </div>
       ) : null}
     </div>
+  )
+}
+
+function NotificationTypeIcon({ type }) {
+  const cfg = {
+    reservation_new:      { icon: MapPin,      cls: 'bg-blue-100 text-blue-600'   },
+    reservation_created:  { icon: MapPin,      cls: 'bg-blue-100 text-blue-600'   },
+    reservation_status_confirmed: { icon: MapPin, cls: 'bg-green-100 text-green-600' },
+    reservation_status_cancelled: { icon: MapPin, cls: 'bg-red-100 text-red-500'  },
+    tournament_registered:{ icon: Trophy,      cls: 'bg-amber-100 text-amber-600' },
+    tournament_entry_new: { icon: Trophy,      cls: 'bg-amber-100 text-amber-600' },
+    membership_approved:  { icon: Check,       cls: 'bg-green-100 text-green-600' },
+    membership_rejected:  { icon: Bell,        cls: 'bg-red-100 text-red-500'     },
+    feed_tournament_share:{ icon: Trophy,      cls: 'bg-purple-100 text-purple-600'},
+    feed_event:           { icon: Calendar,    cls: 'bg-indigo-100 text-indigo-600'},
+  }[type] || { icon: Bell, cls: 'bg-open-light text-open-muted' }
+
+  const Icon = cfg.icon
+  return (
+    <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full ${cfg.cls}`}>
+      <Icon size={13} strokeWidth={2} />
+    </span>
   )
 }
 
@@ -377,14 +424,16 @@ function NavItem({ item, isMobile = false }) {
       to={item.to}
       className={({ isActive }) =>
         [
-          'flex items-center text-sm font-semibold text-open-muted transition hover:text-open-ink',
-          isMobile ? 'h-16 flex-1 flex-col justify-center gap-1' : 'h-11 gap-3 px-3',
+          'flex items-center font-semibold text-open-muted transition hover:text-open-ink',
+          isMobile
+            ? 'h-14 flex-1 flex-col justify-center gap-0.5 text-[10px]'
+            : 'h-11 gap-3 px-3 text-sm',
           isActive ? 'bg-open-bg text-open-ink' : '',
         ].join(' ')
       }
     >
-      <Icon size={isMobile ? 19 : 18} strokeWidth={1.8} />
-      <span className={isMobile ? 'text-[11px]' : ''}>{item.label}</span>
+      <Icon size={isMobile ? 18 : 18} strokeWidth={1.8} />
+      <span className={isMobile ? 'leading-none' : ''}>{item.label}</span>
     </NavLink>
   )
 }
