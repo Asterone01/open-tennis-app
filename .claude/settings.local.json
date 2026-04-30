@@ -5,7 +5,10 @@
       "Bash(npx vite *)",
       "Bash(git push *)",
       "Bash(npm run *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Read(//c/Users/CORE HOME/open-design/**)",
+      "Bash(pnpm --version)",
+      "Bash(pnpm install *)"
     ]
   }
 }

@@ -24,6 +24,7 @@ import useTheme from '../../hooks/useTheme'
 import usePlayerProfile from '../../features/profile/usePlayerProfile'
 import PWABanner from '../PWABanner'
 import UserSettingsPanel from './UserSettingsPanel'
+import { FeedProvider } from '../../features/feed/FeedContext'
 
 const playerNavItems = [
   { label: 'Inicio',    to: '/dashboard',     icon: Home },
@@ -153,7 +154,9 @@ function DashboardLayout() {
         </aside>
 
         <main className="min-h-[calc(100vh-3.5rem)] bg-open-bg px-4 py-5 pb-24 md:min-h-[calc(100vh-4rem)] md:px-8 md:py-8">
-          <Outlet />
+          <FeedProvider>
+            <Outlet />
+          </FeedProvider>
         </main>
       </div>
 
@@ -217,17 +220,20 @@ function NotificationsButton() {
   // Initial load + realtime subscription
   useEffect(() => {
     let channel
+    let cancelled = false
 
     const init = async () => {
       const { data: userData } = await supabase.auth.getUser()
       const uid = userData.user?.id
-      if (!uid) return
+      if (!uid || cancelled) return
 
       setUserId(uid)
       await load(uid)
+      if (cancelled) return
 
+      const name = `notifications:${uid}:${Date.now()}`
       channel = supabase
-        .channel(`notifications:${uid}`)
+        .channel(name)
         .on(
           'postgres_changes',
           {
@@ -246,6 +252,7 @@ function NotificationsButton() {
     init()
 
     return () => {
+      cancelled = true
       if (channel) supabase.removeChannel(channel)
     }
   }, [])
