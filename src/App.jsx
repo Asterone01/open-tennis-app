@@ -19,6 +19,7 @@ import ProfileView from './features/profile/ProfileView'
 import TournamentsView from './features/tournaments/TournamentsView'
 import ManagerReportView from './features/manager/ManagerReportView'
 import FeedView from './features/feed/FeedView'
+import UiStyleTestView from './features/dev/UiStyleTestView'
 import useActiveRole from './hooks/useActiveRole'
 import usePlayerProfile from './features/profile/usePlayerProfile'
 import { supabase } from './lib/supabase'
@@ -117,6 +118,7 @@ function App() {
           <Route path="entrenamientos" element={<TrainingRoute />} />
           <Route path="feed" element={<FeedView />} />
           <Route path="reporte" element={<ManagerReportView />} />
+          <Route path="ui-test" element={<UiStyleTestView />} />
         </Route>
         <Route
           path="*"

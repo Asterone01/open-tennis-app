@@ -12,6 +12,7 @@ import {
   Moon,
   Newspaper,
   Settings,
+  Sparkles,
   Sun,
   Swords,
   Trophy,
@@ -32,6 +33,7 @@ const playerNavItems = [
   { label: 'Torneos',   to: '/tournaments',   icon: Trophy },
   { label: 'Canchas',   to: '/canchas',       icon: MapPin },
   { label: 'Feed',      to: '/feed',          icon: Newspaper },
+  { label: 'UI Test',   to: '/ui-test',       icon: Sparkles },
   { label: 'Perfil',    to: '/profile',       icon: User },
 ]
 
@@ -42,6 +44,7 @@ const coachNavItems = [
   { label: 'Entreno',   to: '/entrenamientos',icon: Dumbbell },
   { label: 'Canchas',   to: '/canchas',       icon: MapPin },
   { label: 'Feed',      to: '/feed',          icon: Newspaper },
+  { label: 'UI Test',   to: '/ui-test',       icon: Sparkles },
   { label: 'Perfil',    to: '/profile',       icon: User },
 ]
 
@@ -51,6 +54,7 @@ const managerNavItems = [
   { label: 'Canchas',     to: '/canchas',      icon: MapPin },
   { label: 'Feed',        to: '/feed',         icon: Newspaper },
   { label: 'Reporte',     to: '/reporte',      icon: BarChart2 },
+  { label: 'UI Test',     to: '/ui-test',      icon: Sparkles },
   { label: 'Perfil',      to: '/profile',      icon: User },
 ]
 
