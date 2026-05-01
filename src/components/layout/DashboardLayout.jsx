@@ -6,17 +6,18 @@ import {
   Calendar,
   Check,
   CreditCard,
-  Dumbbell,
   Home,
   MapPin,
   Moon,
   Newspaper,
   Settings,
+  ShieldCheck,
   Sparkles,
   Sun,
   Swords,
   Trophy,
   User,
+  Users,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import useActiveRole from '../../hooks/useActiveRole'
@@ -38,13 +39,9 @@ const playerNavItems = [
 ]
 
 const coachNavItems = [
-  { label: 'Inicio',    to: '/dashboard',     icon: Home },
-  { label: 'Partidos',  to: '/matches',       icon: Swords },
-  { label: 'Torneos',   to: '/tournaments',   icon: Trophy },
-  { label: 'Entreno',   to: '/entrenamientos',icon: Dumbbell },
-  { label: 'Canchas',   to: '/canchas',       icon: MapPin },
-  { label: 'Feed',      to: '/feed',          icon: Newspaper },
-  { label: 'UI Test',   to: '/ui-test',       icon: Sparkles },
+  { label: 'Dashboard', to: '/dashboard',     icon: Home },
+  { label: 'Skills',    to: '/skills',        icon: ShieldCheck },
+  { label: 'Jugadores', to: '/jugadores',     icon: Users },
   { label: 'Perfil',    to: '/profile',       icon: User },
 ]
 

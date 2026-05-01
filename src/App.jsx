@@ -15,6 +15,9 @@ import CanchasView from './features/admin/CanchasView'
 import CourtReservationsView from './features/courts/CourtReservationsView'
 import TrainingSessionsView from './features/coach/TrainingSessionsView'
 import PlayerTrainingView from './features/coach/PlayerTrainingView'
+import CoachPlayersGallery from './features/coach/CoachPlayersGallery'
+import CoachSkillsView from './features/coach/CoachSkillsView'
+import EvaluationsView from './features/coach/EvaluationsView'
 import ProfileView from './features/profile/ProfileView'
 import TournamentsView from './features/tournaments/TournamentsView'
 import ManagerReportView from './features/manager/ManagerReportView'
@@ -103,6 +106,8 @@ function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardRouter session={session} />} />
+          <Route path="skills" element={<CoachSkillsView />} />
+          <Route path="evaluaciones" element={<EvaluationsView />} />
           <Route path="matches" element={<FriendlyMatchesView />} />
           <Route path="live-match/:matchId" element={<LiveJudgeView />} />
           <Route path="tournaments" element={<TournamentsView />} />
@@ -110,6 +115,7 @@ function App() {
           <Route path="h2h" element={<FaceToFaceView />} />
           <Route path="h2h/:opponentId" element={<FaceToFaceView />} />
           <Route path="profile" element={<ProfileView />} />
+          <Route path="jugadores" element={<CoachPlayersGallery />} />
           <Route path="players/:playerId" element={<PlayerProfileView />} />
           <Route path="trophies/:trophyId" element={<TrophyDetailView />} />
           <Route path="memberships" element={<MembershipsView />} />
