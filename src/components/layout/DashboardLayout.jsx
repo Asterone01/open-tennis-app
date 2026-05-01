@@ -38,6 +38,7 @@ const playerNavItems = [
 const coachNavItems = [
   { label: 'Inicio',    to: '/dashboard',     icon: Home },
   { label: 'Partidos',  to: '/matches',       icon: Swords },
+  { label: 'Torneos',   to: '/tournaments',   icon: Trophy },
   { label: 'Entreno',   to: '/entrenamientos',icon: Dumbbell },
   { label: 'Canchas',   to: '/canchas',       icon: MapPin },
   { label: 'Feed',      to: '/feed',          icon: Newspaper },
