@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import HomeDashboard from './HomeDashboard'
 import ManagerDashboard from '../admin/ManagerDashboard'
 import CoachDashboard from '../coach/CoachDashboard'
+import DashboardFeedPreview from '../feed/DashboardFeedPreview'
 import useActiveRole from '../../hooks/useActiveRole'
 import usePlayerProfile from '../profile/usePlayerProfile'
 
@@ -30,7 +31,10 @@ function DashboardRouter({ session }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: 'easeOut' }}
     >
-      <DashboardComponent />
+      <div className="grid gap-6">
+        <DashboardComponent />
+        <DashboardFeedPreview />
+      </div>
     </motion.div>
   )
 }

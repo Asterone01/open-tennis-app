@@ -4,7 +4,7 @@ import { Moon, Printer, Sun } from 'lucide-react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ROLE_LABELS    = { manager: 'MANAGER', coach: 'COACH', player: 'PLAYER' }
+const ROLE_LABELS    = { manager: 'ADMIN', admin: 'ADMIN', coach: 'COACH', player: 'PLAYER' }
 const PLAN_LABELS    = { standard: 'Estándar', premium: 'Premium', student: 'Estudiante', courtesy: 'Cortesía' }
 const CAT_LABELS     = { beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado', pro: 'Pro' }
 
@@ -56,7 +56,7 @@ function MembershipCard({ club, profile }) {
       fullName={profile.fullName}
       avatarUrl={profile.avatarUrl}
       category={profile.currentCategory || profile.suggestedCategory || 'Intermedio'}
-      role={profile.isCoach ? 'coach' : profile.role || 'player'}
+      role={profile.role === 'manager' ? 'admin' : profile.isCoach ? 'coach' : profile.role || 'player'}
       level={profile.level || 1}
       plan={profile.membershipPlan || 'standard'}
       membershipSince={profile.membershipSince}
@@ -436,7 +436,7 @@ function printCard({ membershipId, fullName, avatarUrl, category, role, level, p
     <div class="dot"></div>
     <div class="footer-text">
       <div class="footer-main">ID Válido para acceso al club</div>
-      <div class="footer-sub">Presenta este código en el acceso del club</div>
+      <div class="footer-sub">Presenta este código en el acceso del club · ${membershipId}</div>
     </div>
     <div class="footer-plan">${plan}${membershipSince ? `<br/>Desde ${membershipSince}` : ''}</div>
   </div>

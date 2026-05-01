@@ -6,9 +6,13 @@ import useManagerClub from '../../hooks/useManagerClub'
 
 const PLANS = ['standard', 'premium', 'student', 'courtesy']
 const PAYMENT_STATUSES = ['pending', 'paid', 'overdue', 'waived']
+const MEMBERSHIP_STATUSES = ['pending', 'approved', 'rejected', 'unassigned']
+const ROLE_FILTERS = ['player', 'coach', 'admin']
 
 const PLAN_LABELS = { standard: 'Estándar', premium: 'Premium', student: 'Estudiante', courtesy: 'Cortesía' }
 const STATUS_LABELS = { pending: 'Pendiente', paid: 'Pagado', overdue: 'Vencido', waived: 'Exento', unknown: 'Pendiente' }
+const MEMBERSHIP_LABELS = { pending: 'Por aprobar', approved: 'Aprobada', rejected: 'Rechazada', unassigned: 'Sin club' }
+const ROLE_LABELS = { player: 'Player', coach: 'Coach', admin: 'Admin' }
 const STATUS_STYLES = {
   paid: 'border-open-primary text-open-primary',
   overdue: 'border-red-500 text-red-500',
@@ -24,30 +28,47 @@ function MembershipsView({ embedded = false }) {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [filterMembership, setFilterMembership] = useState('')
+  const [filterRole, setFilterRole] = useState('')
   const [expandedId, setExpandedId] = useState(null)
   const [saving, setSaving] = useState('')
   const [message, setMessage] = useState('')
 
-  const load = async () => {
-    if (!clubId) return
-    setIsLoading(true)
+  useEffect(() => {
+    let isMounted = true
 
-    const { data, error: loadError } = await supabase
-      .from('players')
-      .select(
-        'id, full_name, email, avatar_url, level, current_category, club_membership_status, is_coach, membership_id, membership_since, membership_plan, membership_payment_status, membership_next_payment_date, membership_last_payment_date, membership_notes',
-      )
-      .eq('club_id', clubId)
-      .eq('club_membership_status', 'approved')
-      .or('is_coach.is.null,is_coach.eq.false')
-      .order('full_name', { ascending: true })
+    const loadMemberships = async () => {
+      if (!clubId) {
+        if (isMounted) {
+          setPlayers([])
+          setIsLoading(false)
+        }
+        return
+      }
 
-    if (loadError) setError(loadError.message)
-    else setPlayers(data || [])
-    setIsLoading(false)
-  }
+      setIsLoading(true)
+      setError('')
 
-  useEffect(() => { load() }, [clubId])
+      const { data, error: loadError } = await supabase
+        .from('players')
+        .select(
+          'id, full_name, email, avatar_url, level, role, current_category, club_membership_status, is_coach, membership_id, membership_since, membership_plan, membership_payment_status, membership_next_payment_date, membership_last_payment_date, membership_notes',
+        )
+        .eq('club_id', clubId)
+        .order('full_name', { ascending: true })
+
+      if (!isMounted) return
+      if (loadError) setError(loadError.message)
+      else setPlayers(data || [])
+      setIsLoading(false)
+    }
+
+    loadMemberships()
+
+    return () => {
+      isMounted = false
+    }
+  }, [clubId])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
@@ -56,22 +77,27 @@ function MembershipsView({ embedded = false }) {
         const st = p.membership_payment_status || 'unknown'
         if (st !== filterStatus) return false
       }
+      if (filterMembership) {
+        const st = p.club_membership_status || 'unassigned'
+        if (st !== filterMembership) return false
+      }
+      if (filterRole && resolveMemberRole(p) !== filterRole) return false
       if (q) {
         const name = (p.full_name || p.email || '').toLowerCase()
         if (!name.includes(q)) return false
       }
       return true
     })
-  }, [players, search, filterStatus])
+  }, [players, search, filterStatus, filterMembership, filterRole])
 
   const kpis = useMemo(() => {
     const total = players.length
     const paid = players.filter((p) => p.membership_payment_status === 'paid').length
     const overdue = players.filter((p) => p.membership_payment_status === 'overdue').length
-    const pending = players.filter((p) =>
-      !p.membership_payment_status || p.membership_payment_status === 'pending' || p.membership_payment_status === 'unknown',
-    ).length
-    return { total, paid, overdue, pending }
+    const pending = players.filter((p) => p.club_membership_status === 'pending').length
+    const coaches = players.filter((p) => resolveMemberRole(p) === 'coach').length
+    const admins = players.filter((p) => resolveMemberRole(p) === 'admin').length
+    return { total, paid, overdue, pending, coaches, admins }
   }, [players])
 
   const overdueList = useMemo(
@@ -88,7 +114,7 @@ function MembershipsView({ embedded = false }) {
       .update(fields)
       .eq('id', playerId)
       .select(
-        'id, full_name, email, avatar_url, level, current_category, club_membership_status, is_coach, membership_id, membership_since, membership_plan, membership_payment_status, membership_next_payment_date, membership_last_payment_date, membership_notes',
+        'id, full_name, email, avatar_url, level, role, current_category, club_membership_status, is_coach, membership_id, membership_since, membership_plan, membership_payment_status, membership_next_payment_date, membership_last_payment_date, membership_notes',
       )
       .single()
 
@@ -111,6 +137,26 @@ function MembershipsView({ embedded = false }) {
 
   const handleMarkOverdue = (playerId) =>
     update(playerId, { membership_payment_status: 'overdue' })
+
+  const handleApproveMembership = (player) =>
+    update(player.id, {
+      club_membership_status: 'approved',
+      membership_id: player.membership_id || buildMembershipId(player.id),
+      membership_since: player.membership_since || todayIso(),
+      membership_payment_status:
+        resolveMemberRole(player) === 'admin'
+          ? 'waived'
+          : player.membership_payment_status === 'unknown'
+          ? 'pending'
+          : player.membership_payment_status || 'pending',
+      membership_plan:
+        resolveMemberRole(player) === 'admin'
+          ? 'courtesy'
+          : player.membership_plan || 'standard',
+    })
+
+  const handleRejectMembership = (player) =>
+    update(player.id, { club_membership_status: 'rejected' })
 
   if (isClubLoading) {
     return <p className="text-sm text-open-muted">Cargando club...</p>
@@ -145,17 +191,19 @@ function MembershipsView({ embedded = false }) {
             </h1>
           </div>
           <p className="max-w-md text-sm leading-6 text-open-muted">
-            Estado de pagos, planes y fechas de vencimiento por jugador.
+            Estado de aprobacion, pagos, planes y fechas de vencimiento para players, coaches y admins.
           </p>
         </div>
       )}
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         <KpiCard label="Miembros" value={kpis.total} />
+        <KpiCard label="Coaches" value={kpis.coaches} />
+        <KpiCard label="Admins" value={kpis.admins} />
+        <KpiCard label="Por aprobar" value={kpis.pending} accent={kpis.pending > 0 ? 'primary' : undefined} />
         <KpiCard label="Al corriente" value={kpis.paid} accent="primary" />
         <KpiCard label="Vencidos" value={kpis.overdue} accent={kpis.overdue > 0 ? 'danger' : undefined} />
-        <KpiCard label="Pendientes" value={kpis.pending} />
       </div>
 
       {/* Alerta vencidos */}
@@ -186,15 +234,41 @@ function MembershipsView({ embedded = false }) {
         </p>
       )}
 
+      {error && (
+        <p className="border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+          {error}
+        </p>
+      )}
+
       {/* Filtros */}
-      <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
+      <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_180px]">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar jugador..."
+          placeholder="Buscar miembro..."
           className="h-11 border border-open-light bg-open-surface px-3 text-sm text-open-ink outline-none focus:border-open-primary"
         />
+        <select
+          value={filterRole}
+          onChange={(e) => setFilterRole(e.target.value)}
+          className="h-11 border border-open-light bg-open-surface px-3 text-sm text-open-ink outline-none focus:border-open-primary"
+        >
+          <option value="">Todos los roles</option>
+          {ROLE_FILTERS.map((role) => (
+            <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+          ))}
+        </select>
+        <select
+          value={filterMembership}
+          onChange={(e) => setFilterMembership(e.target.value)}
+          className="h-11 border border-open-light bg-open-surface px-3 text-sm text-open-ink outline-none focus:border-open-primary"
+        >
+          <option value="">Todas las membresias</option>
+          {MEMBERSHIP_STATUSES.map((s) => (
+            <option key={s} value={s}>{MEMBERSHIP_LABELS[s]}</option>
+          ))}
+        </select>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
@@ -207,14 +281,14 @@ function MembershipsView({ embedded = false }) {
         </select>
       </div>
 
-      {filterStatus || search ? (
+      {filterStatus || filterMembership || filterRole || search ? (
         <div className="flex items-center gap-3">
           <p className="text-sm text-open-muted">
             {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
           </p>
           <button
             type="button"
-            onClick={() => { setSearch(''); setFilterStatus('') }}
+            onClick={() => { setSearch(''); setFilterStatus(''); setFilterMembership(''); setFilterRole('') }}
             className="text-xs font-semibold text-open-primary transition hover:opacity-70"
           >
             Limpiar
@@ -233,6 +307,8 @@ function MembershipsView({ embedded = false }) {
             onToggle={() => setExpandedId(expandedId === player.id ? null : player.id)}
             onMarkPaid={() => handleMarkPaid(player.id)}
             onMarkOverdue={() => handleMarkOverdue(player.id)}
+            onApprove={() => handleApproveMembership(player)}
+            onReject={() => handleRejectMembership(player)}
             onUpdate={(fields) => update(player.id, fields)}
           />
         ))}
@@ -251,12 +327,14 @@ function MembershipsView({ embedded = false }) {
   )
 }
 
-function MemberRow({ player, isExpanded, isSaving, onToggle, onMarkPaid, onMarkOverdue, onUpdate }) {
+function MemberRow({ player, isExpanded, isSaving, onToggle, onMarkPaid, onMarkOverdue, onApprove, onReject, onUpdate }) {
   const [nextDate, setNextDate] = useState(player.membership_next_payment_date || '')
   const [plan, setPlan] = useState(player.membership_plan || 'standard')
   const [notes, setNotes] = useState(player.membership_notes || '')
 
   const status = player.membership_payment_status || 'unknown'
+  const membershipStatus = player.club_membership_status || 'unassigned'
+  const memberRole = resolveMemberRole(player)
   const initials = getInitials(player.full_name || player.email || 'OPEN')
   const isOverdue = status === 'overdue'
   const nextPaymentSoon =
@@ -291,6 +369,12 @@ function MemberRow({ player, isExpanded, isSaving, onToggle, onMarkPaid, onMarkO
               >
                 {STATUS_LABELS[status]}
               </span>
+              <span className="border border-open-light px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-open-muted">
+                {ROLE_LABELS[memberRole]}
+              </span>
+              <span className="border border-open-light px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-open-muted">
+                {MEMBERSHIP_LABELS[membershipStatus] || membershipStatus}
+              </span>
               {nextPaymentSoon && (
                 <span className="border border-yellow-400 px-1.5 py-0.5 text-[10px] font-semibold text-yellow-600">
                   Vence pronto
@@ -323,6 +407,27 @@ function MemberRow({ player, isExpanded, isSaving, onToggle, onMarkPaid, onMarkO
         <div className="grid gap-4 border-t border-open-light bg-open-bg px-4 py-4">
           {/* Quick actions */}
           <div className="flex flex-wrap gap-2">
+            {membershipStatus !== 'approved' ? (
+              <button
+                type="button"
+                onClick={onApprove}
+                disabled={isSaving}
+                className="inline-flex h-9 items-center gap-1.5 bg-open-primary px-3 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Check size={13} strokeWidth={2} />
+                Aprobar membresia
+              </button>
+            ) : null}
+            {membershipStatus !== 'rejected' ? (
+              <button
+                type="button"
+                onClick={onReject}
+                disabled={isSaving}
+                className="inline-flex h-9 items-center gap-1.5 border border-open-light bg-open-surface px-3 text-xs font-semibold text-open-muted transition hover:border-red-400 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Rechazar
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onMarkPaid}
@@ -429,6 +534,16 @@ function KpiCard({ label, value, accent }) {
 
 function getInitials(name) {
   return name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase()
+}
+
+function resolveMemberRole(player) {
+  if (player.role === 'manager') return 'admin'
+  if (player.is_coach) return 'coach'
+  return 'player'
+}
+
+function buildMembershipId(playerId) {
+  return `OPEN-${String(playerId || '').replace(/[^a-z0-9]/gi, '').slice(0, 8).toUpperCase()}`
 }
 
 function formatDate(value) {

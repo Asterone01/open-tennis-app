@@ -94,15 +94,15 @@ function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false,
 
   return (
     <article
-      className="relative overflow-hidden border border-black/20 text-white"
+      className="relative overflow-hidden rounded-[2rem] border border-black/15 text-white shadow-2xl shadow-black/10 sm:rounded-[2.5rem]"
       style={{ backgroundColor: cardColor }}
     >
       {/* ── Texture overlay ── */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-black/25" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/20" />
 
       {/* ── HERO ── */}
-      <div className="relative min-h-[13rem] overflow-hidden">
+      <div className="relative min-h-[19rem] overflow-hidden sm:min-h-[22rem]">
 
         {/* Avatar — bleeds from right with gradient mask */}
         {hasAvatar ? (
@@ -110,19 +110,19 @@ function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false,
             <img
               src={profile.avatarUrl}
               alt=""
-              className="absolute right-0 top-0 h-full w-3/5 object-cover object-center md:w-1/2"
-              style={{ maskImage: 'linear-gradient(to left, black 40%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to left, black 40%, transparent 100%)' }}
+              className="absolute inset-y-0 right-0 h-full w-full object-cover object-center opacity-85 md:w-3/5"
+              style={{ maskImage: 'linear-gradient(to left, black 38%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to left, black 38%, transparent 100%)' }}
             />
             {/* Extra gradient so text is always readable */}
             <div
               className="pointer-events-none absolute inset-0"
-              style={{ background: `linear-gradient(to right, rgb(${rgb}) 45%, rgba(${rgb},0.6) 70%, transparent 100%)` }}
+              style={{ background: `linear-gradient(to right, rgb(${rgb}) 0%, rgba(${rgb},0.94) 38%, rgba(${rgb},0.62) 68%, transparent 100%)` }}
             />
           </>
         ) : (
           /* No avatar — decorative initials watermark */
           <div
-            className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 select-none text-[7rem] font-black leading-none tracking-tighter"
+            className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 select-none text-[8rem] font-black leading-none tracking-tighter sm:text-[11rem]"
             style={{ color: `rgba(${rgb === '13,13,15' ? '255,255,255' : rgb},0.08)` }}
           >
             {initials(fullName)}
@@ -130,11 +130,11 @@ function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false,
         )}
 
         {/* Hero content */}
-        <div className="relative z-10 flex h-full flex-col justify-between gap-4 p-5 md:p-6">
+        <div className="relative z-10 flex min-h-[19rem] flex-col justify-between gap-5 p-5 sm:min-h-[22rem] sm:p-7">
           {/* Top row: role badge + level + avatar button */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2">
-              <span className={`flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${roleMeta.color}`}>
+              <span className={`flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest ${roleMeta.color}`}>
                 <RoleIcon size={11} strokeWidth={2} />
                 {roleMeta.label}
               </span>
@@ -142,7 +142,7 @@ function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false,
 
             <div className="flex items-center gap-2">
               {/* Level pill */}
-              <div className="border border-white/20 bg-white px-3 py-1.5 text-center text-[#0D0D0F]">
+              <div className="rounded-[1rem] border border-white/20 bg-white px-3 py-1.5 text-center text-[#0D0D0F] shadow-xl shadow-black/10">
                 <span className="block text-[9px] font-bold uppercase tracking-[0.2em] text-black/40">Level</span>
                 <strong className="block font-display text-base font-black leading-tight tracking-wider">LVL {level}</strong>
               </div>
@@ -153,7 +153,7 @@ function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false,
                 onClick={onAvatarClick}
                 disabled={!canEditAvatar || isAvatarUploading}
                 className={[
-                  'relative grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border border-white/20 bg-white/10 text-sm font-bold',
+                  'relative grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-white/20 bg-white/10 text-sm font-bold shadow-xl shadow-black/10 sm:h-14 sm:w-14',
                   canEditAvatar ? 'cursor-pointer hover:border-white/50 transition' : 'cursor-default',
                 ].join(' ')}
                 aria-label={canEditAvatar ? 'Cambiar foto de perfil' : undefined}
@@ -179,10 +179,10 @@ function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false,
 
           {/* Name + tags */}
           <div>
-            <h2 className="text-2xl font-black leading-tight tracking-tight text-white drop-shadow md:text-3xl">
+            <h2 className="max-w-[11ch] text-4xl font-black leading-[0.9] tracking-tight text-white drop-shadow sm:text-5xl lg:text-6xl">
               {fullName}
             </h2>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Tag>{clubName}</Tag>
               {role !== 'manager' && category ? <Tag>Cat. {category}</Tag> : null}
               {role !== 'manager' && ageGroup ? <Tag>{ageGroup}</Tag> : null}
@@ -201,7 +201,7 @@ function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false,
       </div>
 
       {/* ── METRICS ROW ── */}
-      <div className="relative z-10 grid grid-cols-2 gap-px border-t border-white/10 bg-white/5">
+      <div className="relative z-10 grid grid-cols-1 gap-px border-t border-white/10 bg-white/5 sm:grid-cols-2">
         {role === 'manager' ? (
           <>
             <HeroMetric label="Club" value={clubName} detail="Tu organización" />
@@ -219,7 +219,7 @@ function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false,
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="relative z-10 flex w-full items-center justify-center gap-2 border-t border-white/10 bg-white/5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50 transition hover:bg-white/10 hover:text-white/80"
+        className="relative z-10 flex min-h-12 w-full items-center justify-center gap-2 border-t border-white/10 bg-white/5 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/58 transition hover:bg-white/10 hover:text-white/86"
       >
         {expanded ? (
           <>Menos detalles <ChevronUp size={13} strokeWidth={2} /></>
@@ -291,7 +291,7 @@ function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false,
 
 function Tag({ children }) {
   return (
-    <span className="border border-white/15 bg-white/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/65">
+    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/72 backdrop-blur-sm">
       {children}
     </span>
   )
@@ -299,7 +299,7 @@ function Tag({ children }) {
 
 function HeroMetric({ label, value, detail }) {
   return (
-    <div className="p-4 md:p-5">
+    <div className="min-h-28 p-4 md:p-5">
       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">{label}</p>
       <p className="mt-2 text-xl font-black tracking-tight text-white">{value}</p>
       <p className="mt-1 text-[11px] text-white/40">{detail}</p>
@@ -309,7 +309,7 @@ function HeroMetric({ label, value, detail }) {
 
 function FooterMetric({ label, value }) {
   return (
-    <div className="p-4">
+    <div className="min-h-24 p-4">
       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">{label}</p>
       <p className="mt-1.5 text-base font-bold text-white">{value}</p>
     </div>

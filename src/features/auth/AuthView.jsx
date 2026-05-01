@@ -1,14 +1,29 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { setStoredRole } from '../../hooks/useActiveRole'
 import OnboardingWizard from './OnboardingWizard'
 
 const loginRoles = [
-  { id: 'manager', label: 'Manager', description: 'Clubes y torneos' },
-  { id: 'coach', label: 'Coach', description: 'Evaluaciones' },
-  { id: 'player', label: 'Player', description: 'Perfil y retos' },
+  {
+    id: 'manager',
+    label: 'Manager',
+    description: 'Clubes, membresias y operacion',
+    image: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'coach',
+    label: 'Coach',
+    description: 'Evaluaciones, entreno y torneos',
+    image: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    id: 'player',
+    label: 'Player',
+    description: 'Perfil, retos y competencia',
+    image: 'https://images.unsplash.com/photo-1542144582-1ba00456b5e3?auto=format&fit=crop&w=900&q=80',
+  },
 ]
 
 const introImageUrl = '/auth-court.jpg'
@@ -99,47 +114,49 @@ function AuthView() {
   }
 
   return (
-    <main className="min-h-screen bg-open-bg px-6 text-open-ink">
+    <main className="min-h-screen bg-open-bg px-4 text-open-ink sm:px-6">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center py-12">
         <motion.section
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: 'easeOut' }}
-          className="grid w-full gap-4 rounded-2xl border border-open-border bg-open-surface p-4 md:grid-cols-[1fr_420px] md:gap-6"
+          className="grid w-full gap-4 rounded-[2rem] border border-open-border bg-open-surface p-3 shadow-2xl shadow-black/5 md:grid-cols-[1fr_430px] md:gap-5 md:p-4"
         >
           <div
-            className="flex min-h-[520px] flex-col justify-between rounded-xl border border-open-border bg-open-surface bg-cover bg-center p-8 md:p-12"
+            className="relative isolate flex min-h-[520px] overflow-hidden rounded-[1.65rem] border border-open-border bg-open-surface bg-cover bg-center p-7 sm:rounded-[2rem] md:p-11"
             style={{
               backgroundImage: `
                 linear-gradient(
                   to right,
-                  var(--color-open-surface) 0%,
-                  color-mix(in srgb, var(--color-open-surface) 92%, transparent) 42%,
-                  color-mix(in srgb, var(--color-open-surface) 18%, transparent) 100%
+                  rgba(255,255,255,0.96) 0%,
+                  rgba(255,255,255,0.82) 40%,
+                  rgba(255,255,255,0.24) 100%
                 ),
                 linear-gradient(
                   to top,
-                  var(--color-open-surface) 0%,
-                  color-mix(in srgb, var(--color-open-surface) 72%, transparent) 34%,
+                  rgba(255,255,255,0.95) 0%,
+                  rgba(255,255,255,0.72) 34%,
                   transparent 72%
                 ),
                 url('${introImageUrl}')
               `,
             }}
           >
-            <div>
-              <p className="open-logo text-sm text-open-muted">
-                OPEN
-              </p>
-              <h1 className="mt-8 max-w-xl text-4xl font-semibold leading-tight text-open-ink md:text-6xl">
-                Performance hub for competitive tennis.
-              </h1>
-            </div>
+            <div className="flex min-h-full w-full flex-col justify-between">
+              <div>
+                <p className="open-logo text-sm text-open-muted">
+                  OPEN
+                </p>
+                <h1 className="mt-8 max-w-xl text-5xl font-black leading-[0.92] text-open-ink sm:text-6xl lg:text-7xl">
+                  Performance hub for competitive tennis.
+                </h1>
+              </div>
 
-            <div className="grid gap-3 text-sm text-open-muted sm:grid-cols-3">
-              <span>Players</span>
-              <span>Ratings</span>
-              <span>Match intelligence</span>
+              <div className="grid gap-3 text-sm font-semibold text-open-muted sm:grid-cols-3">
+                <span>Players</span>
+                <span>Ratings</span>
+                <span>Match intelligence</span>
+              </div>
             </div>
           </div>
 
@@ -149,35 +166,23 @@ function AuthView() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="flex flex-col justify-center gap-5 rounded-xl border border-open-border bg-open-bg p-8 md:p-10"
+              className="flex flex-col justify-center gap-5 rounded-[1.65rem] border border-open-border bg-open-bg p-5 sm:rounded-[2rem] sm:p-7 md:p-9"
             >
               <div>
-                <h2 className="text-2xl font-semibold text-open-ink">
-                  ¿Cómo quieres entrar?
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-open-muted">
+                  Acceso OPEN
+                </p>
+                <h2 className="mt-3 text-3xl font-black leading-tight text-open-ink">
+                  Como quieres entrar?
                 </h2>
-                <p className="mt-2 text-sm text-open-muted">
+                <p className="mt-2 text-sm font-semibold text-open-muted">
                   Selecciona tu perfil para continuar.
                 </p>
               </div>
 
-              <div className="grid gap-2">
+              <div className="grid gap-3">
                 {loginRoles.map((role) => (
-                  <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => handleRoleSelect(role.id)}
-                    className="group flex items-center justify-between rounded-xl border border-open-border bg-open-surface px-4 py-4 text-left text-open-ink transition hover:border-open-ink hover:bg-open-ink hover:text-open-surface"
-                  >
-                    <span>
-                      <span className="block text-sm font-semibold">
-                        {role.label}
-                      </span>
-                      <span className="mt-1 block text-xs text-open-muted group-hover:text-open-surface/75">
-                        {role.description}
-                      </span>
-                    </span>
-                    <span className="h-3 w-3 rounded-full border border-open-muted group-hover:border-open-surface group-hover:bg-open-surface" />
-                  </button>
+                  <RoleBanner key={role.id} role={role} onSelect={handleRoleSelect} />
                 ))}
               </div>
             </motion.div>
@@ -188,7 +193,7 @@ function AuthView() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="flex flex-col justify-center gap-5 rounded-xl border border-open-border bg-open-bg p-8 md:p-10"
+              className="flex flex-col justify-center gap-5 rounded-[1.65rem] border border-open-border bg-open-bg p-5 sm:rounded-[2rem] sm:p-7 md:p-9"
             >
               <button
                 type="button"
@@ -219,7 +224,7 @@ function AuthView() {
                   onChange={(event) => setEmail(event.target.value)}
                   autoComplete="email"
                   required
-                  className="h-12 rounded-xl border border-open-border bg-open-surface px-4 text-base text-open-ink outline-none transition focus:border-open-ink focus:bg-open-surface"
+                  className="h-12 rounded-[1.1rem] border border-open-border bg-open-surface px-4 text-base text-open-ink outline-none transition focus:border-open-ink focus:bg-open-surface"
                   placeholder="nombre@open.app"
                 />
               </label>
@@ -232,19 +237,19 @@ function AuthView() {
                   onChange={(event) => setPassword(event.target.value)}
                   autoComplete="current-password"
                   required
-                  className="h-12 rounded-xl border border-open-border bg-open-surface px-4 text-base text-open-ink outline-none transition focus:border-open-ink focus:bg-open-surface"
+                  className="h-12 rounded-[1.1rem] border border-open-border bg-open-surface px-4 text-base text-open-ink outline-none transition focus:border-open-ink focus:bg-open-surface"
                   placeholder="••••••••"
                 />
               </label>
 
               {error ? (
-                <p className="rounded-xl border border-open-border bg-open-surface px-4 py-3 text-sm text-open-muted">
+                <p className="rounded-[1.1rem] border border-open-border bg-open-surface px-4 py-3 text-sm text-open-muted">
                   {error}
                 </p>
               ) : null}
 
               {message ? (
-                <p className="rounded-xl border border-open-border bg-open-surface px-4 py-3 text-sm text-open-muted">
+                <p className="rounded-[1.1rem] border border-open-border bg-open-surface px-4 py-3 text-sm text-open-muted">
                   {message}
                 </p>
               ) : null}
@@ -252,7 +257,7 @@ function AuthView() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-12 rounded-xl bg-open-ink px-5 text-sm font-semibold text-open-surface transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+                className="h-12 rounded-[1.1rem] bg-open-ink px-5 text-sm font-black text-open-surface transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {isSubmitting ? 'Iniciando sesión...' : 'Iniciar sesión'}
               </button>
@@ -260,7 +265,7 @@ function AuthView() {
               <button
                 type="button"
                 onClick={() => setMode('signup')}
-                className="h-12 rounded-xl border border-open-border bg-open-surface px-5 text-sm font-semibold text-open-ink transition hover:border-open-ink"
+                className="h-12 rounded-[1.1rem] border border-open-border bg-open-surface px-5 text-sm font-black text-open-ink transition hover:border-open-ink"
               >
                 Registrarse
               </button>
@@ -305,6 +310,37 @@ async function validateSelectedRole(user, selectedRole) {
   }
 
   return primaryRole === 'player' || primaryRole === 'coach'
+}
+
+function RoleBanner({ role, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(role.id)}
+      className="group relative min-h-32 overflow-hidden rounded-[1.45rem] border border-open-border bg-open-ink p-5 text-center text-white transition hover:-translate-y-0.5 hover:border-open-ink hover:shadow-xl hover:shadow-black/10 sm:min-h-36 sm:text-left"
+    >
+      <div
+        className="absolute inset-0 bg-cover bg-center opacity-[0.62] transition duration-300 group-hover:scale-105 group-hover:opacity-[0.78]"
+        style={{ backgroundImage: `url('${role.image}')` }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/74 to-black/18" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/78 via-transparent to-transparent" />
+
+      <span className="relative z-10 flex min-h-24 flex-col items-center justify-center gap-4 sm:min-h-28 sm:items-start sm:justify-between">
+        <span className="grid h-9 w-9 place-items-center rounded-full border border-white/40 text-white transition group-hover:bg-white group-hover:text-open-ink sm:self-end">
+          <ChevronRight size={17} strokeWidth={2.2} />
+        </span>
+        <span>
+          <span className="block text-3xl font-black leading-none sm:text-2xl">
+            {role.label}
+          </span>
+          <span className="mx-auto mt-2 block max-w-48 text-sm font-semibold text-white/72 sm:mx-0">
+            {role.description}
+          </span>
+        </span>
+      </span>
+    </button>
+  )
 }
 
 export default AuthView
