@@ -233,8 +233,8 @@ function PlayerCard({ profile, canEditAvatar = false, isAvatarUploading = false,
         <div className="relative z-10 border-t border-white/10">
           {/* Radar chart — players and coaches only */}
           {role !== 'manager' && (
-            <div className="h-64 px-4 pt-4">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-64 min-w-0 px-4 pt-4">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <RadarChart data={skills} outerRadius="72%">
                   <PolarGrid stroke="#FFFFFF" strokeOpacity={0.15} />
                   <PolarAngleAxis

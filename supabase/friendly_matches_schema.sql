@@ -19,11 +19,12 @@ create table if not exists public.friendly_matches (
   created_by_user_id uuid references auth.users(id) on delete set null,
   opponent_player_id text not null,
   opponent_user_id uuid references auth.users(id) on delete set null,
-  winner_player_id text not null,
+  winner_player_id text,
   match_type text not null default 'singles',
   match_date date not null default current_date,
+  match_time time,
   court text,
-  score text not null,
+  score text,
   score_sets jsonb not null default '[]'::jsonb,
   has_live_judge boolean not null default false,
   is_live_match boolean not null default false,
@@ -35,9 +36,9 @@ create table if not exists public.friendly_matches (
   xp_awarded boolean not null default false,
   created_at timestamptz not null default now(),
   constraint friendly_matches_type_check
-    check (match_type in ('singles')),
+    check (match_type in ('singles', 'doubles')),
   constraint friendly_matches_status_check
-    check (status in ('pending', 'confirmed', 'rejected', 'expired')),
+    check (status in ('scheduled', 'pending', 'confirmed', 'rejected', 'expired')),
   constraint friendly_matches_distinct_players
     check (created_by_player_id <> opponent_player_id)
 );
@@ -46,6 +47,7 @@ alter table if exists public.friendly_matches
   add column if not exists club_id uuid references public.clubs(id) on delete set null,
   add column if not exists created_by_user_id uuid references auth.users(id) on delete set null,
   add column if not exists opponent_user_id uuid references auth.users(id) on delete set null,
+  add column if not exists match_time time,
   add column if not exists score_sets jsonb not null default '[]'::jsonb,
   add column if not exists has_live_judge boolean not null default false,
   add column if not exists is_live_match boolean not null default false,

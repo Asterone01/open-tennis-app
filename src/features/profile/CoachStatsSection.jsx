@@ -29,7 +29,10 @@ export default function CoachStatsSection({ coachUserId }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!coachUserId) { setIsLoading(false); return }
+    if (!coachUserId) {
+      void Promise.resolve().then(() => setIsLoading(false))
+      return
+    }
 
     const load = async () => {
       // Load all sessions by this coach

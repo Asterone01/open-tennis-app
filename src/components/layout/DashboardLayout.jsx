@@ -7,10 +7,8 @@ import {
   Home,
   MapPin,
   Moon,
-  Newspaper,
   Settings,
   ShieldCheck,
-  Sparkles,
   Sun,
   Swords,
   Trophy,
@@ -27,12 +25,9 @@ import UserSettingsPanel from './UserSettingsPanel'
 import FeedProvider from '../../features/feed/FeedProvider'
 
 const playerNavItems = [
-  { label: 'Inicio',    to: '/dashboard',     icon: Home },
-  { label: 'Partidos',  to: '/matches',       icon: Swords },
-  { label: 'Torneos',   to: '/tournaments',   icon: Trophy },
-  { label: 'Canchas',   to: '/canchas',       icon: MapPin },
-  { label: 'Feed',      to: '/feed',          icon: Newspaper },
-  { label: 'UI Test',   to: '/ui-test',       icon: Sparkles },
+  { label: 'Dashboard', to: '/dashboard',     icon: Home },
+  { label: 'Skills',    to: '/skills',        icon: ShieldCheck },
+  { label: 'Desafios',  to: '/desafios',      icon: Swords },
   { label: 'Perfil',    to: '/profile',       icon: User },
 ]
 
@@ -403,6 +398,8 @@ function NotificationTypeIcon({ type }) {
     membership_rejected:  { icon: Bell,        cls: 'bg-red-100 text-red-500'     },
     feed_tournament_share:{ icon: Trophy,      cls: 'bg-purple-100 text-purple-600'},
     feed_event:           { icon: Calendar,    cls: 'bg-indigo-100 text-indigo-600'},
+    friendly_match_scheduled: { icon: Swords,  cls: 'bg-blue-100 text-blue-600' },
+    friendly_match_judge: { icon: Swords,      cls: 'bg-purple-100 text-purple-600' },
   }[type] || { icon: Bell, cls: 'bg-open-light text-open-muted' }
 
   const Icon = cfg.icon

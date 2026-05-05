@@ -45,6 +45,8 @@ const RES_STATUS_STYLES = {
   confirmed: 'border-open-primary text-open-primary',
   cancelled: 'border-open-light text-open-muted',
 }
+const COURTS_HERO_IMAGE = 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?auto=format&fit=crop&w=1800&q=80'
+const COURTS_RES_IMAGE = 'https://images.unsplash.com/photo-1542144582-1ba00456b5e3?auto=format&fit=crop&w=1600&q=80'
 
 function createEmptyForm() {
   return { name: '', surface: 'clay', isIndoor: false, notes: '', address: '' }
@@ -105,7 +107,11 @@ function CanchasView() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [clubId])
+  useEffect(() => {
+    if (!clubId) return
+    void Promise.resolve().then(load)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clubId])
 
   const flash = (msg) => { setMessage(msg); setTimeout(() => setMessage(''), 2500) }
 
@@ -240,27 +246,39 @@ function CanchasView() {
       {/* Hidden photo file input */}
       <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
 
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
-        <div>
-          <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-xs font-semibold text-open-muted transition hover:text-open-ink">
-            <ArrowLeft size={13} strokeWidth={2} />Dashboard
-          </Link>
-          <p className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-open-muted">{club?.name || 'Club'}</p>
-          <h1 className="mt-2 text-3xl font-semibold text-open-ink md:text-5xl">Canchas</h1>
+      {/* Hero */}
+      <article className="relative overflow-hidden rounded-[2rem] border border-open-light bg-open-ink text-white shadow-xl shadow-black/5">
+        <img src={COURTS_HERO_IMAGE} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-black/20" />
+        <div className="relative grid gap-8 p-7 sm:p-9 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+          <div>
+            <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white/70 transition hover:text-white">
+              <ArrowLeft size={13} strokeWidth={2} />Dashboard
+            </Link>
+            <p className="mt-8 text-xs font-black uppercase tracking-[0.28em] text-white/70">{club?.name || 'Club'}</p>
+            <h1 className="mt-4 max-w-2xl text-5xl font-black leading-[0.92] text-white md:text-7xl">
+              Canchas listas para reservar.
+            </h1>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <HeroMetric label="Total" value={kpis.total} />
+            <HeroMetric label="Disponibles" value={kpis.active} />
+            <HeroMetric label="Mantenimiento" value={kpis.maintenance} />
+            <HeroMetric label="Reservas" value={reservations.length} />
+            <button type="button" onClick={() => { setShowForm((v) => !v); setError('') }}
+              className="inline-flex min-h-16 items-center justify-center gap-2 rounded-[1.4rem] bg-white px-5 text-sm font-black text-open-ink transition hover:bg-open-bg sm:col-span-2">
+              <Plus size={18} strokeWidth={2.2} />
+              {showForm ? 'Cerrar creación' : 'Nueva cancha'}
+            </button>
+          </div>
         </div>
-        <button type="button" onClick={() => { setShowForm((v) => !v); setError('') }}
-          className="inline-flex h-11 items-center gap-2 bg-open-primary px-4 text-sm font-semibold text-white transition hover:opacity-90">
-          <Plus size={16} strokeWidth={1.8} />
-          {showForm ? 'Cancelar' : 'Nueva cancha'}
-        </button>
-      </div>
+      </article>
 
       {error   && <p className="border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
       {message && <p className="border border-open-light bg-open-surface px-4 py-3 text-sm font-semibold text-open-ink">{message}</p>}
 
       {/* KPIs */}
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Total"         value={kpis.total} />
         <KpiCard label="Disponibles"   value={kpis.active}      accent="primary" />
         <KpiCard label="Mantenimiento" value={kpis.maintenance} accent={kpis.maintenance > 0 ? 'warn' : undefined} />
@@ -269,8 +287,14 @@ function CanchasView() {
 
       {/* Nueva cancha form */}
       {showForm && (
-        <article className="grid gap-4 border border-open-light bg-open-surface p-5">
-          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-open-muted">Nueva cancha</h2>
+        <article className="grid gap-5 rounded-[2rem] border border-open-light bg-open-surface p-5 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-open-muted">Nueva cancha</p>
+              <h2 className="mt-1 text-2xl font-black text-open-ink">Agrega una cancha al club.</h2>
+            </div>
+            <span className="rounded-full border border-open-light bg-open-bg px-3 py-1 text-xs font-bold text-open-muted">Paso unico</span>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Nombre">
               <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -295,20 +319,20 @@ function CanchasView() {
               placeholder="Ej: Iluminación LED" className={inputCls} />
           </Field>
           <button type="button" onClick={handleCreate} disabled={isSaving}
-            className="h-11 justify-self-start bg-open-primary px-5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50">
+            className="h-12 justify-self-start rounded-full bg-open-primary px-6 text-sm font-black text-white transition hover:opacity-90 disabled:opacity-50">
             {isSaving ? 'Creando...' : 'Crear cancha'}
           </button>
         </article>
       )}
 
       {/* ── Court ID Cards ── */}
-      <div className="grid gap-4">
+      <div className="grid gap-5 xl:grid-cols-2">
         {courts.map((court) => (
           <div key={court.id}>
             {/* ── Card ── */}
             <article
-              className="relative overflow-hidden border border-black/20"
-              style={{ minHeight: 300, backgroundColor: SURFACE_BG[court.surface] || '#0D0D0F' }}
+              className="relative overflow-hidden rounded-[2rem] border border-open-light shadow-xl shadow-black/5"
+              style={{ minHeight: 340, backgroundColor: SURFACE_BG[court.surface] || '#0D0D0F' }}
             >
               {/* Background photo */}
               {court.photo_url && (
@@ -324,7 +348,7 @@ function CanchasView() {
 
               {/* Status badge — top right */}
               <div className="absolute right-3 top-3 z-20">
-                <span className={`border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm ${STATUS_STYLES[court.status] || STATUS_STYLES.inactive}`}>
+                <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm ${STATUS_STYLES[court.status] || STATUS_STYLES.inactive}`}>
                   {STATUSES.find((s) => s.value === court.status)?.label}
                 </span>
               </div>
@@ -334,7 +358,7 @@ function CanchasView() {
                 type="button"
                 onClick={() => triggerPhotoUpload(court.id)}
                 disabled={uploadingId === court.id}
-                className="absolute left-3 top-3 z-20 grid h-8 w-8 place-items-center border border-white/20 bg-black/40 text-white/70 backdrop-blur-sm transition hover:border-white/60 hover:text-white disabled:opacity-50"
+                className="absolute left-3 top-3 z-20 grid h-10 w-10 place-items-center rounded-full border border-white/20 bg-black/40 text-white/70 backdrop-blur-sm transition hover:border-white/60 hover:text-white disabled:opacity-50"
                 title="Subir foto"
               >
                 {uploadingId === court.id
@@ -378,19 +402,18 @@ function CanchasView() {
             </article>
 
             {/* Action bar below card */}
-            <div className="flex border border-t-0 border-open-light bg-open-surface">
+            <div className="mt-2 flex rounded-[1.4rem] border border-open-light bg-open-surface p-2 shadow-sm">
               <button
                 type="button"
                 onClick={() => openEdit(court)}
-                className="flex-1 py-2.5 text-xs font-semibold text-open-muted transition hover:bg-open-bg hover:text-open-ink"
+                className="flex-1 rounded-full py-2.5 text-xs font-bold text-open-muted transition hover:bg-open-bg hover:text-open-ink"
               >
                 {expandedId === court.id ? 'Cerrar' : 'Configurar'}
               </button>
-              <div className="w-px bg-open-light" />
               <button
                 type="button"
                 onClick={() => handleDelete(court.id)}
-                className="px-4 py-2.5 text-xs font-semibold text-open-muted transition hover:bg-red-50 hover:text-red-500"
+                className="grid h-10 w-10 place-items-center rounded-full text-xs font-semibold text-open-muted transition hover:bg-red-50 hover:text-red-500"
               >
                 <X size={14} strokeWidth={2} />
               </button>
@@ -398,12 +421,12 @@ function CanchasView() {
 
             {/* ── Edit panel ── */}
             {expandedId === court.id && (
-              <div className="border border-t-0 border-open-light bg-open-bg">
+              <div className="mt-2 rounded-[1.8rem] border border-open-light bg-open-bg p-3 shadow-sm">
                 {/* Tabs */}
-                <div className="flex border-b border-open-light">
+                <div className="flex flex-wrap gap-2 rounded-[1.2rem] bg-open-surface p-1">
                   {[['info','Info'], ['precios','Precios y horario']].map(([t, label]) => (
                     <button key={t} type="button" onClick={() => setEditTab(t)}
-                      className={`h-10 px-4 text-xs font-semibold transition ${editTab === t ? 'border-b-2 border-open-ink text-open-ink' : 'text-open-muted hover:text-open-ink'}`}>
+                      className={`h-10 rounded-full px-4 text-xs font-bold transition ${editTab === t ? 'bg-open-ink text-white' : 'text-open-muted hover:bg-open-bg hover:text-open-ink'}`}>
                       {label}
                     </button>
                   ))}
@@ -426,7 +449,7 @@ function CanchasView() {
                         placeholder="Observaciones..." className={inputCls} />
                     </Field>
                     <button type="button" disabled={isSaving} onClick={() => handleSaveInfo(court.id)}
-                      className="h-10 self-end bg-open-ink px-4 text-sm font-semibold text-white disabled:opacity-50">
+                      className="h-10 self-end rounded-full bg-open-ink px-4 text-sm font-bold text-white disabled:opacity-50">
                       {isSaving ? '...' : 'Guardar'}
                     </button>
                   </div>
@@ -474,7 +497,7 @@ function CanchasView() {
                                 ...p,
                                 closedDays: isClosed ? p.closedDays.filter((d) => d !== idx) : [...p.closedDays, idx],
                               }))}
-                              className={`h-9 w-12 border text-xs font-semibold transition ${isClosed ? 'border-open-ink bg-open-ink text-white' : 'border-open-light bg-open-surface text-open-muted hover:border-open-ink'}`}>
+                              className={`h-9 w-12 rounded-full border text-xs font-semibold transition ${isClosed ? 'border-open-ink bg-open-ink text-white' : 'border-open-light bg-open-surface text-open-muted hover:border-open-ink'}`}>
                               {day}
                             </button>
                           )
@@ -496,7 +519,7 @@ function CanchasView() {
                       </label>
                     </div>
                     <button type="button" disabled={isSaving} onClick={() => handleSavePricing(court.id)}
-                      className="h-10 justify-self-start bg-open-ink px-5 text-sm font-semibold text-white disabled:opacity-50">
+                      className="h-10 justify-self-start rounded-full bg-open-ink px-5 text-sm font-bold text-white disabled:opacity-50">
                       {isSaving ? 'Guardando...' : 'Guardar configuración'}
                     </button>
                   </div>
@@ -516,13 +539,26 @@ function CanchasView() {
       {isLoading && <p className="text-sm text-open-muted">Cargando...</p>}
 
       {/* ── Reservaciones ── */}
-      <section className="grid gap-4">
+      <section className="grid gap-4 rounded-[2rem] border border-open-light bg-open-surface p-4 shadow-sm sm:p-5">
+        <div className="relative overflow-hidden rounded-[1.6rem] bg-open-ink p-5 text-white">
+          <img src={COURTS_RES_IMAGE} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/65 to-black/20" />
+          <div className="relative flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-white/65">Agenda</p>
+              <h2 className="mt-2 text-3xl font-black leading-none text-white">Reservaciones</h2>
+            </div>
+            <p className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold text-white/80 backdrop-blur">
+              {filteredRes.length} visibles
+            </p>
+          </div>
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-open-muted">Reservaciones</h2>
-          <div className="flex gap-1 border border-open-light bg-open-bg p-1">
+          <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-open-muted">Filtrar agenda</h3>
+          <div className="flex flex-wrap gap-1 rounded-full border border-open-light bg-open-bg p-1">
             {[['all','Todas'],['pending','Pendientes'],['confirmed','Confirmadas'],['cancelled','Canceladas']].map(([v,l]) => (
               <button key={v} type="button" onClick={() => setResFilter(v)}
-                className={`h-8 px-3 text-xs font-semibold transition ${resFilter === v ? 'bg-open-ink text-white' : 'text-open-muted hover:text-open-ink'}`}>
+                className={`h-8 rounded-full px-3 text-xs font-semibold transition ${resFilter === v ? 'bg-open-ink text-white' : 'text-open-muted hover:bg-open-surface hover:text-open-ink'}`}>
                 {l}
               </button>
             ))}
@@ -545,9 +581,18 @@ function CanchasView() {
 
 function CourtTag({ children }) {
   return (
-    <span className="border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white/80 backdrop-blur-sm">
+    <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-white/80 backdrop-blur-sm">
       {children}
     </span>
+  )
+}
+
+function HeroMetric({ label, value }) {
+  return (
+    <article className="rounded-[1.4rem] border border-white/10 bg-white/15 p-4 text-white backdrop-blur-md">
+      <p className="text-3xl font-black leading-none">{value}</p>
+      <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/70">{label}</p>
+    </article>
   )
 }
 
@@ -558,17 +603,17 @@ function ReservationRow({ res, courts, isSaving, onUpdate }) {
   const isConfirmed = res.status === 'confirmed'
 
   return (
-    <article className="grid gap-3 border border-open-light bg-open-surface px-4 py-3 sm:grid-cols-[1fr_auto]">
+    <article className="grid gap-3 rounded-[1.4rem] border border-open-light bg-open-bg px-4 py-3 sm:grid-cols-[1fr_auto]">
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-semibold text-open-ink">
             {court?.name || res.courts?.name || 'Cancha'} · {res.reservation_date}
           </p>
-          <span className={`border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] ${RES_STATUS_STYLES[res.status] || ''}`}>
+          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] ${RES_STATUS_STYLES[res.status] || ''}`}>
             {RES_STATUS_LABELS[res.status]}
           </span>
           {res.total_price > 0 && (
-            <span className={`border px-1.5 py-0.5 text-[10px] font-semibold ${isPaid ? 'border-open-primary text-open-primary' : 'border-yellow-400 text-yellow-600'}`}>
+            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${isPaid ? 'border-open-primary text-open-primary' : 'border-yellow-400 text-yellow-600'}`}>
               {PAY_STATUS_LABELS[res.payment_status]}
             </span>
           )}
@@ -583,18 +628,18 @@ function ReservationRow({ res, courts, isSaving, onUpdate }) {
         <div className="flex flex-wrap gap-2">
           {!isConfirmed && (
             <button type="button" disabled={isSaving} onClick={() => onUpdate(res.id, { status: 'confirmed' })}
-              className="inline-flex h-8 items-center gap-1 bg-open-ink px-2.5 text-xs font-semibold text-white disabled:opacity-50">
+              className="inline-flex h-8 items-center gap-1 rounded-full bg-open-ink px-3 text-xs font-semibold text-white disabled:opacity-50">
               <Check size={12} strokeWidth={2} />Confirmar
             </button>
           )}
           {res.total_price > 0 && !isPaid && (
             <button type="button" disabled={isSaving} onClick={() => onUpdate(res.id, { payment_status: 'paid' })}
-              className="h-8 border border-open-primary px-2.5 text-xs font-semibold text-open-primary disabled:opacity-50">
+              className="h-8 rounded-full border border-open-primary px-3 text-xs font-semibold text-open-primary disabled:opacity-50">
               Pagado
             </button>
           )}
           <button type="button" disabled={isSaving} onClick={() => onUpdate(res.id, { status: 'cancelled' })}
-            className="h-8 border border-open-light px-2.5 text-xs font-semibold text-open-muted disabled:opacity-50">
+            className="h-8 rounded-full border border-open-light px-3 text-xs font-semibold text-open-muted disabled:opacity-50">
             Cancelar
           </button>
         </div>
@@ -613,15 +658,16 @@ function Field({ label, children }) {
 }
 
 function KpiCard({ label, value, accent }) {
-  const border = accent === 'primary' ? 'border-open-primary' : accent === 'warn' ? 'border-yellow-400' : 'border-open-light'
+  const border = accent === 'primary' ? 'border-open-primary/50' : accent === 'warn' ? 'border-yellow-400/70' : 'border-open-light'
+  const tone = accent === 'primary' ? 'from-open-primary/10' : accent === 'warn' ? 'from-yellow-200/60' : 'from-white'
   return (
-    <article className={`border bg-open-surface p-5 ${border}`}>
+    <article className={`rounded-[1.6rem] border bg-gradient-to-br ${tone} to-open-surface p-5 shadow-sm ${border}`}>
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-open-muted">{label}</p>
       <p className="mt-3 text-4xl font-black text-open-ink">{value}</p>
     </article>
   )
 }
 
-const inputCls = 'h-10 w-full border border-open-light bg-open-surface px-3 text-sm text-open-ink outline-none focus:border-open-primary'
+const inputCls = 'h-11 w-full rounded-[1rem] border border-open-light bg-open-surface px-3 text-sm text-open-ink outline-none focus:border-open-primary'
 
 export default CanchasView

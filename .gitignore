@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# Screenshots y scripts con credenciales
+screenshots/
+scripts/capture-screens.js

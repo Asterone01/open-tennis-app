@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, BarChart2, Calendar, DollarSign, TrendingUp, Users } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import useManagerClub from '../../hooks/useManagerClub'
@@ -86,13 +86,10 @@ export default function ManagerReportView() {
   const [players, setPlayers]   = useState([])
   const [courts, setCourts]     = useState([])
   const [isLoading, setLoading] = useState(true)
+  const [nowMs] = useState(() => Date.now())
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!clubId) return
-    load()
-  }, [clubId, period])
-
-  async function load() {
     setLoading(true)
     const start = isoDate(periodStart(period))
 
@@ -105,7 +102,7 @@ export default function ManagerReportView() {
           .gte('reservation_date', start),
         supabase
           .from('players')
-          .select('id, full_name, club_membership_status, next_payment_date, membership_plan, email, phone')
+          .select('id, full_name, club_membership_status, membership_next_payment_date, membership_plan, email, phone')
           .eq('club_id', clubId),
         supabase
           .from('courts')
@@ -123,14 +120,19 @@ export default function ManagerReportView() {
     setPlayers(pl || [])
     setCourts(ct || [])
     setLoading(false)
-  }
+  }, [clubId, period])
+
+  useEffect(() => {
+    if (!clubId) return
+    void Promise.resolve().then(load)
+  }, [clubId, load])
 
   const confirmed    = reservations.filter((r) => r.status === 'confirmed')
   const totalRevenue = confirmed.reduce((s, r) => s + (r.total_price || 0), 0)
   const totalCount   = reservations.length
   const activeCount  = players.filter((p) => p.club_membership_status === 'approved').length
   const expiredList  = players.filter(
-    (p) => p.next_payment_date && new Date(p.next_payment_date) < new Date(),
+    (p) => p.membership_next_payment_date && new Date(p.membership_next_payment_date) < new Date(),
   )
 
   const weeklyData   = buildWeeklyRevenue(confirmed)
@@ -274,14 +276,14 @@ export default function ManagerReportView() {
                   <tbody className="divide-y divide-open-light">
                     {expiredList.map((p) => {
                       const daysOverdue = Math.floor(
-                        (Date.now() - new Date(p.next_payment_date).getTime()) / 86_400_000,
+                        (nowMs - new Date(p.membership_next_payment_date).getTime()) / 86_400_000,
                       )
                       return (
                         <tr key={p.id} className="hover:bg-open-surface">
                           <td className="py-2.5 pr-4 font-medium text-open-ink">{p.full_name || '—'}</td>
                           <td className="py-2.5 pr-4 text-open-muted">{p.membership_plan || '—'}</td>
                           <td className="py-2.5 pr-4 text-open-muted">
-                            {new Date(p.next_payment_date).toLocaleDateString('es')}
+                            {new Date(p.membership_next_payment_date).toLocaleDateString('es')}
                           </td>
                           <td className="py-2.5">
                             <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">

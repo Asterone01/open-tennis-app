@@ -13,6 +13,8 @@ import TrophyDetailView from './features/profile/TrophyDetailView'
 import MembershipsView from './features/admin/MembershipsView'
 import CanchasView from './features/admin/CanchasView'
 import ManagerSkillsView from './features/admin/ManagerSkillsView'
+import PlayerChallengesView from './features/player/PlayerChallengesView'
+import PlayerSkillsView from './features/player/PlayerSkillsView'
 import CourtReservationsView from './features/courts/CourtReservationsView'
 import TrainingSessionsView from './features/coach/TrainingSessionsView'
 import PlayerTrainingView from './features/coach/PlayerTrainingView'
@@ -42,9 +44,11 @@ function TrainingRoute() {
 }
 
 function SkillsRoute() {
-  const { profile } = usePlayerProfile()
+  const { profile, user } = usePlayerProfile()
+  const [activeRole] = useActiveRole(user?.user_metadata?.role || 'player')
   if (profile.role === 'manager') return <ManagerSkillsView />
-  return <CoachSkillsView />
+  if (profile.isCoach && activeRole === 'coach') return <CoachSkillsView />
+  return <PlayerSkillsView />
 }
 
 function App() {
@@ -114,6 +118,8 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardRouter session={session} />} />
           <Route path="skills" element={<SkillsRoute />} />
+          <Route path="desafios" element={<PlayerChallengesView />} />
+          <Route path="challenges" element={<PlayerChallengesView />} />
           <Route path="evaluaciones" element={<EvaluationsView />} />
           <Route path="matches" element={<FriendlyMatchesView />} />
           <Route path="live-match/:matchId" element={<LiveJudgeView />} />

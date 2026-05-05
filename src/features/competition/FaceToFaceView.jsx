@@ -107,8 +107,8 @@ function FaceToFaceView() {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.18, duration: 0.5, ease: 'easeOut' }}
       >
-        <div className="h-[360px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[360px] min-w-0">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <RadarChart data={chartData} outerRadius="72%">
               <PolarGrid stroke="var(--color-primary)" strokeOpacity={0.14} />
               <PolarAngleAxis

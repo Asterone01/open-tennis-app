@@ -303,8 +303,8 @@ function ChartPanel({ title, subtitle, children, footer }) {
 
 function DonutChart({ data, colors, centerLabel, centerDetail }) {
   return (
-    <div className="relative min-h-[17rem]">
-      <ResponsiveContainer width="100%" height={270}>
+    <div className="relative min-h-[17rem] min-w-0">
+      <ResponsiveContainer width="100%" height={270} minWidth={0}>
         <PieChart>
           <Pie
             data={data}
@@ -345,8 +345,8 @@ function GaugeChart({ value }) {
   ]
 
   return (
-    <div className="relative min-h-[17rem]">
-      <ResponsiveContainer width="100%" height={270}>
+    <div className="relative min-h-[17rem] min-w-0">
+      <ResponsiveContainer width="100%" height={270} minWidth={0}>
         <PieChart>
           <Pie
             data={data}

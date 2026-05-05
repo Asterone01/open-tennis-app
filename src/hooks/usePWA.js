@@ -27,7 +27,7 @@ export function usePWA() {
   // Install prompt
   useEffect(() => {
     if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true)
+      void Promise.resolve().then(() => setIsInstalled(true))
       return
     }
 
@@ -35,14 +35,18 @@ export function usePWA() {
       e.preventDefault()
       setInstallPrompt(e)
     }
-
-    window.addEventListener('beforeinstallprompt', handler)
-    window.addEventListener('appinstalled', () => {
+    const installedHandler = () => {
       setIsInstalled(true)
       setInstallPrompt(null)
-    })
+    }
 
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    window.addEventListener('beforeinstallprompt', handler)
+    window.addEventListener('appinstalled', installedHandler)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler)
+      window.removeEventListener('appinstalled', installedHandler)
+    }
   }, [])
 
   // SW update detection

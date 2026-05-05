@@ -1,4 +1,4 @@
-import { Download, RefreshCw, Share, Wifi, WifiOff, X } from 'lucide-react'
+import { Download, RefreshCw, Share, WifiOff, X } from 'lucide-react'
 import { usePWA } from '../hooks/usePWA'
 
 export default function PWABanner() {

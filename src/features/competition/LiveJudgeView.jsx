@@ -194,7 +194,7 @@ function buildWinnerId(winner, playerA, playerB) {
 export default function LiveJudgeView() {
   const { matchId } = useParams()
   const navigate = useNavigate()
-  const { player: currentPlayer, user } = usePlayerProfile()
+  const { user } = usePlayerProfile()
   const [match, setMatch] = useState(null)
   const [playerA, setPlayerA] = useState(null)
   const [playerB, setPlayerB] = useState(null)

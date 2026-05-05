@@ -108,7 +108,7 @@ self.addEventListener('fetch', (event) => {
 // --- Push notifications ---
 self.addEventListener('push', (event) => {
   if (!event.data) return
-  let data = {}
+  let data
   try { data = event.data.json() } catch { data = { title: 'OPEN', body: event.data.text() } }
 
   event.waitUntil(
@@ -126,14 +126,14 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const href = event.notification.data?.href || '/dashboard'
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const client of list) {
         if ('focus' in client) {
           client.navigate(href)
           return client.focus()
         }
       }
-      return clients.openWindow(href)
+      return self.clients.openWindow(href)
     }),
   )
 })
