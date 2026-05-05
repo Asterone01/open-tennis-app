@@ -31,6 +31,7 @@ const introImageUrl = '/auth-court.jpg'
 function AuthView() {
   const [step, setStep] = useState('role')
   const [mode, setMode] = useState('login')
+  const [mobileIntroDone, setMobileIntroDone] = useState(false)
   const [selectedRole, setSelectedRole] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -46,6 +47,7 @@ function AuthView() {
         onBackToLogin={() => {
           setMode('login')
           setStep('auth')
+          setMobileIntroDone(true)
         }}
       />
     )
@@ -54,6 +56,7 @@ function AuthView() {
   const handleRoleSelect = (role) => {
     setSelectedRole(role)
     setStoredRole(role)
+    setMobileIntroDone(true)
     setStep('auth')
   }
 
@@ -123,7 +126,10 @@ function AuthView() {
           className="grid w-full gap-4 rounded-[2rem] border border-open-border bg-open-surface p-3 shadow-2xl shadow-black/5 md:grid-cols-[1fr_430px] md:gap-5 md:p-4"
         >
           <div
-            className="relative isolate flex min-h-[520px] overflow-hidden rounded-[1.65rem] border border-open-border bg-open-surface bg-cover bg-center p-7 sm:rounded-[2rem] md:p-11"
+            className={[
+              'relative isolate min-h-[calc(100vh-6rem)] overflow-hidden rounded-[1.65rem] border border-open-border bg-open-surface bg-cover bg-center p-7 sm:rounded-[2rem] md:min-h-[520px] md:p-11',
+              mobileIntroDone ? 'hidden md:flex' : 'flex',
+            ].join(' ')}
             style={{
               backgroundImage: `
                 linear-gradient(
@@ -152,10 +158,20 @@ function AuthView() {
                 </h1>
               </div>
 
-              <div className="grid gap-3 text-sm font-semibold text-open-muted sm:grid-cols-3">
-                <span>Players</span>
-                <span>Ratings</span>
-                <span>Match intelligence</span>
+              <div className="grid gap-5">
+                <div className="grid gap-3 text-sm font-semibold text-open-muted sm:grid-cols-3">
+                  <span>Players</span>
+                  <span>Ratings</span>
+                  <span>Match intelligence</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileIntroDone(true)}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1.2rem] bg-open-ink px-5 text-sm font-black text-open-surface transition hover:opacity-90 md:hidden"
+                >
+                  Siguiente
+                  <ChevronRight size={17} strokeWidth={2.2} />
+                </button>
               </div>
             </div>
           </div>
@@ -166,7 +182,10 @@ function AuthView() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="flex flex-col justify-center gap-5 rounded-[1.65rem] border border-open-border bg-open-bg p-5 sm:rounded-[2rem] sm:p-7 md:p-9"
+              className={[
+                'flex-col justify-center gap-5 rounded-[1.65rem] border border-open-border bg-open-bg p-5 sm:rounded-[2rem] sm:p-7 md:p-9',
+                mobileIntroDone ? 'flex' : 'hidden md:flex',
+              ].join(' ')}
             >
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-open-muted">
@@ -193,11 +212,17 @@ function AuthView() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.28, ease: 'easeOut' }}
-              className="flex flex-col justify-center gap-5 rounded-[1.65rem] border border-open-border bg-open-bg p-5 sm:rounded-[2rem] sm:p-7 md:p-9"
+              className={[
+                'flex-col justify-center gap-5 rounded-[1.65rem] border border-open-border bg-open-bg p-5 sm:rounded-[2rem] sm:p-7 md:p-9',
+                mobileIntroDone ? 'flex' : 'hidden md:flex',
+              ].join(' ')}
             >
               <button
                 type="button"
-                onClick={() => setStep('role')}
+                onClick={() => {
+                  setMobileIntroDone(true)
+                  setStep('role')
+                }}
                 className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-open-muted transition hover:text-open-ink"
               >
                 <ArrowLeft size={16} strokeWidth={1.8} />
