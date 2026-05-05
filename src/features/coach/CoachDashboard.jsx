@@ -46,7 +46,7 @@ function CoachDashboard() {
           .or('is_coach.is.null,is_coach.eq.false'),
         supabase
           .from('training_sessions')
-          .select('id, title, session_date, max_players, status')
+          .select('id, title, session_date, status')
           .eq('club_id', profile.clubId)
           .gte('session_date', today)
           .order('session_date', { ascending: true })
@@ -126,6 +126,45 @@ function CoachDashboard() {
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-3">
+        <ActionBanner
+          kicker="Evaluaciones"
+          title={`${pendingEvaluation.length} por evaluar`}
+          detail={
+            pendingEvaluation.length === 0
+              ? 'Todo el roster activo tiene categoria.'
+              : 'Asigna categoria, stats y XP al roster activo.'
+          }
+          to="/evaluaciones"
+          image="https://images.unsplash.com/photo-1609710228159-0fa9bd7c0827?auto=format&fit=crop&w=1200&q=80"
+          icon={ShieldCheck}
+        />
+        <ActionBanner
+          kicker="Entrenamiento"
+          title={`${sessions.length} sesiones`}
+          detail={
+            sessions[0]
+              ? `Proxima: ${formatShortDate(sessions[0].session_date)}`
+              : 'Programa la siguiente clase del club.'
+          }
+          to="/entrenamientos"
+          image="https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=1200&q=80"
+          icon={Dumbbell}
+        />
+        <ActionBanner
+          kicker="Competencia"
+          title={`${activeTournaments.length} torneos`}
+          detail={
+            activeTournaments[0]
+              ? `Activo: ${activeTournaments[0].title}`
+              : 'Crea o revisa los torneos del club.'
+          }
+          to="/tournaments"
+          image="https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1200&q=80"
+          icon={Trophy}
+        />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
         <ChartPanel title="Categorias" subtitle="Distribucion del roster" footer={<CategoryLegend data={categoryData} />}>
           {categoryData.length > 0 ? (
             <DonutChart data={categoryData} colors={chartColors} centerLabel={`${approvedPlayers.length}`} centerDetail="jugadores" />
@@ -146,41 +185,6 @@ function CoachDashboard() {
               : `${pendingEvaluation.length} jugadores activos todavia necesitan categoria.`}
           </p>
         </ChartPanel>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-3">
-        <ListPanel title="Proximas sesiones" to="/entrenamientos" empty="Sin sesiones proximas.">
-          {sessions.slice(0, 4).map((session) => (
-            <InfoRow
-              key={session.id}
-              title={session.title || 'Sesion de entrenamiento'}
-              detail={session.session_date}
-              badge={session.status || 'open'}
-            />
-          ))}
-        </ListPanel>
-
-        <ListPanel title="Pendientes de evaluacion" to="/evaluaciones" empty="Sin pendientes ahora.">
-          {pendingEvaluation.slice(0, 4).map((player) => (
-            <InfoRow
-              key={player.id}
-              title={player.full_name || player.email}
-              detail={player.suggested_category ? `Sugerida: Cat. ${player.suggested_category}` : 'Sin categoria'}
-              to={`/players/${player.id}`}
-            />
-          ))}
-        </ListPanel>
-
-        <ListPanel title="Torneos activos" to="/tournaments" empty="Sin torneos activos.">
-          {activeTournaments.slice(0, 4).map((tournament) => (
-            <InfoRow
-              key={tournament.id}
-              title={tournament.title}
-              detail={tournament.start_date || 'Fecha pendiente'}
-              badge={formatStatus(tournament.status)}
-            />
-          ))}
-        </ListPanel>
       </div>
     </section>
   )
@@ -240,6 +244,45 @@ function HeroMetric({ metric }) {
         </span>
       </span>
     </div>
+  )
+}
+
+function ActionBanner({ kicker, title, detail, to, image, icon: Icon }) {
+  return (
+    <Link
+      to={to}
+      className="group relative isolate grid min-h-56 overflow-hidden rounded-[2rem] border border-open-light p-5 text-white shadow-xl shadow-black/5 transition hover:-translate-y-0.5 hover:border-open-ink hover:shadow-2xl hover:shadow-black/10 sm:rounded-[2.35rem]"
+    >
+      <div
+        className="absolute inset-0 -z-20 bg-cover bg-center transition duration-500 group-hover:scale-105"
+        style={{ backgroundImage: `url('${image}')` }}
+      />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-black via-black/78 to-black/24" />
+      <div className="grid h-full content-between gap-8">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-200/90">
+              {kicker}
+            </p>
+            <h2 className="mt-5 max-w-[10ch] text-4xl font-black leading-[0.92]">
+              {title}
+            </h2>
+          </div>
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-open-ink transition group-hover:scale-105">
+            <Icon size={20} strokeWidth={2.2} />
+          </span>
+        </div>
+
+        <div className="flex items-end justify-between gap-4">
+          <p className="max-w-xs text-sm font-semibold leading-6 text-white/72">
+            {detail}
+          </p>
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition group-hover:bg-white group-hover:text-open-ink">
+            <ChevronRight size={19} strokeWidth={2.3} />
+          </span>
+        </div>
+      </div>
+    </Link>
   )
 }
 
@@ -352,63 +395,6 @@ function CategoryLegend({ data, colors = chartColors }) {
   )
 }
 
-function ListPanel({ title, to, empty, children }) {
-  const hasChildren = Array.isArray(children) ? children.length > 0 : Boolean(children)
-
-  return (
-    <section className="grid content-start gap-3 rounded-[2rem] border border-open-light bg-open-surface p-4 sm:p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-black text-open-ink">{title}</h2>
-        <Link
-          to={to}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-open-ink text-open-surface"
-          aria-label={title}
-        >
-          <ChevronRight size={18} strokeWidth={2.2} />
-        </Link>
-      </div>
-      <div className="grid gap-2">
-        {hasChildren ? children : <EmptyPanel text={empty} />}
-      </div>
-    </section>
-  )
-}
-
-function InfoRow({ title, detail, badge, to }) {
-  const content = (
-    <>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-black text-open-ink">{title}</span>
-        <span className="mt-1 block text-xs text-open-muted">{detail}</span>
-      </span>
-      {badge ? (
-        <span className="rounded-full bg-open-bg px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-open-muted">
-          {badge}
-        </span>
-      ) : (
-        <ChevronRight size={16} strokeWidth={2.2} className="text-open-muted" />
-      )}
-    </>
-  )
-
-  if (to) {
-    return (
-      <Link
-        to={to}
-        className="flex min-h-16 items-center gap-3 rounded-[1.25rem] border border-open-light bg-open-bg p-3 transition hover:border-open-ink"
-      >
-        {content}
-      </Link>
-    )
-  }
-
-  return (
-    <div className="flex min-h-16 items-center gap-3 rounded-[1.25rem] border border-open-light bg-open-bg p-3">
-      {content}
-    </div>
-  )
-}
-
 function EmptyPanel({ text }) {
   return (
     <p className="rounded-[1.25rem] border border-open-light bg-open-bg p-4 text-sm text-open-muted">
@@ -427,15 +413,12 @@ function buildCategoryData(players) {
   return Object.entries(counts).map(([label, value]) => ({ label, value }))
 }
 
-function formatStatus(status) {
-  const labels = {
-    open: 'Abierto',
-    in_progress: 'Activo',
-    completed: 'Cerrado',
-    cancelled: 'Cancelado',
-  }
-
-  return labels[status] || status || 'Activo'
+function formatShortDate(value) {
+  if (!value) return 'Fecha pendiente'
+  return new Intl.DateTimeFormat('es-MX', {
+    day: '2-digit',
+    month: 'short',
+  }).format(new Date(`${value}T00:00:00`))
 }
 
 function buildRosterStatusData(players, approvedPlayers, pendingEvaluation) {

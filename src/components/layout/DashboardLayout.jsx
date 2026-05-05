@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
-  BarChart2,
   Bell,
   Calendar,
   Check,
-  CreditCard,
   Home,
   MapPin,
   Moon,
@@ -46,12 +44,9 @@ const coachNavItems = [
 ]
 
 const managerNavItems = [
-  { label: 'Inicio',      to: '/dashboard',    icon: Home },
-  { label: 'Membresías',  to: '/membresias',   icon: CreditCard },
+  { label: 'Dashboard',   to: '/dashboard',    icon: Home },
+  { label: 'Skills',      to: '/skills',       icon: ShieldCheck },
   { label: 'Canchas',     to: '/canchas',      icon: MapPin },
-  { label: 'Feed',        to: '/feed',         icon: Newspaper },
-  { label: 'Reporte',     to: '/reporte',      icon: BarChart2 },
-  { label: 'UI Test',     to: '/ui-test',      icon: Sparkles },
   { label: 'Perfil',      to: '/profile',      icon: User },
 ]
 

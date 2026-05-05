@@ -38,6 +38,9 @@ const FILTERS = [
   { key: 'post',   label: 'Comunidad' },
 ]
 
+const FEED_HERO_IMAGE =
+  'https://images.unsplash.com/photo-1542144582-1ba00456b5e3?auto=format&fit=crop&w=1800&q=80'
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function relativeTime(iso) {
@@ -87,21 +90,52 @@ export default function FeedView() {
     .slice(0, 5)
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_300px]">
+    <div className="grid gap-5">
+      <header className="relative isolate overflow-hidden rounded-[2rem] bg-open-ink px-5 py-6 text-white shadow-sm sm:rounded-[2.25rem] sm:px-7 sm:py-7 lg:min-h-[14rem] lg:px-8 lg:py-8">
+        <div
+          className="absolute inset-0 -z-20 bg-cover bg-center"
+          style={{ backgroundImage: `url(${FEED_HERO_IMAGE})` }}
+        />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(0,0,0,0.92),rgba(0,0,0,0.58),rgba(0,0,0,0.18))]" />
+        <div className="grid min-h-full gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.36fr)] lg:items-end">
+          <div className="max-w-3xl">
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-white/68">
+              Comunidad
+            </p>
+            <h1 className="mt-4 max-w-2xl text-5xl font-black leading-[0.94] tracking-normal text-white sm:text-5xl lg:text-6xl">
+              Feed social.
+            </h1>
+            <p className="mt-4 max-w-xl text-sm font-semibold leading-6 text-white/76">
+              Eventos, torneos, noticias y momentos del club en tiempo real.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <HeroMetric label="Posts" value={posts.length} />
+            <HeroMetric label="Torneos" value={tournaments.length} />
+            <HeroMetric label="Jugadores" value={communityStats?.players || 0} />
+            <HeroMetric label="Clubes" value={communityStats?.clubs || 0} />
+          </div>
+        </div>
+      </header>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
 
       {/* ── Main feed ── */}
       <div className="min-w-0">
         {/* Header */}
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-open-ink">Feed Social</h1>
-            <p className="mt-0.5 text-xs text-open-muted">Eventos, torneos y noticias del club</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-open-muted">
+              Actualizaciones
+            </p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-open-ink">Lo ultimo</h2>
           </div>
           {isStaff && (
             <button
               type="button"
               onClick={() => setCompose(true)}
-              className="flex items-center gap-2 bg-open-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+              className="flex h-11 items-center gap-2 rounded-full bg-open-primary px-4 text-sm font-black text-white transition hover:opacity-90"
             >
               <Plus size={15} strokeWidth={2.5} />
               Nueva publicación
@@ -110,17 +144,17 @@ export default function FeedView() {
         </div>
 
         {/* Filter tabs */}
-        <div className="mb-4 flex gap-0 border-b border-open-light">
+        <div className="mb-4 flex gap-2 overflow-x-auto rounded-[1.35rem] border border-open-light bg-open-surface p-2">
           {FILTERS.map((f) => (
             <button
               key={f.key}
               type="button"
               onClick={() => setFilter(f.key)}
               className={[
-                'px-4 py-2.5 text-xs font-bold uppercase tracking-[0.12em] transition',
+                'h-10 shrink-0 rounded-full px-4 text-xs font-black uppercase tracking-[0.12em] transition',
                 filter === f.key
-                  ? 'border-b-2 border-open-primary text-open-ink'
-                  : 'text-open-muted hover:text-open-ink',
+                  ? 'bg-open-ink text-white'
+                  : 'bg-open-bg text-open-muted hover:text-open-ink',
               ].join(' ')}
             >
               {f.label}
@@ -138,7 +172,7 @@ export default function FeedView() {
         ) : filteredPosts.length === 0 ? (
           <EmptyState filter={filter} isStaff={isStaff} onCompose={() => setCompose(true)} />
         ) : (
-          <div className="divide-y divide-open-light">
+          <div className="grid gap-3">
             {filteredPosts.map((post) => (
               <PostCard
                 key={post.id}
@@ -230,6 +264,7 @@ export default function FeedView() {
           </SidebarCard>
         )}
       </aside>
+      </div>
 
       {/* Compose modal */}
       {composeOpen && (
@@ -252,15 +287,27 @@ export default function FeedView() {
 
 // ─── Post card ────────────────────────────────────────────────────────────────
 
+function HeroMetric({ label, value }) {
+  return (
+    <div className="rounded-[1.15rem] border border-white/14 bg-white/10 p-3 backdrop-blur-md">
+      <p className="text-xl font-black leading-none text-white">{value}</p>
+      <p className="mt-2 text-[0.6rem] font-black uppercase tracking-[0.16em] text-white/68">
+        {label}
+      </p>
+    </div>
+  )
+}
+
 function PostCard({ post, myReaction, isOwn, onReact, onDelete }) {
   const [confirmDel, setConfirmDel] = useState(false)
   const meta = TYPE_META[post.type] || TYPE_META.post
   const Icon = meta.icon
 
   return (
-    <article className="flex gap-3 py-4 sm:gap-4">
+    <article className="rounded-[1.75rem] border border-open-light bg-open-surface p-4 shadow-sm sm:p-5">
+      <div className="flex gap-3 sm:gap-4">
       {/* Type icon circle */}
-      <div className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full ${meta.color}`}>
+      <div className={`mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-[1rem] ${meta.color}`}>
         <Icon size={16} strokeWidth={2} className="text-white" />
       </div>
 
@@ -275,7 +322,7 @@ function PostCard({ post, myReaction, isOwn, onReact, onDelete }) {
               <button
                 type="button"
                 onClick={() => setConfirmDel(true)}
-                className="ml-auto text-open-muted transition hover:text-red-500"
+                className="ml-auto grid h-8 w-8 place-items-center rounded-full text-open-muted transition hover:bg-open-bg hover:text-red-500"
               >
                 <Trash2 size={13} strokeWidth={1.8} />
               </button>
@@ -290,12 +337,12 @@ function PostCard({ post, myReaction, isOwn, onReact, onDelete }) {
 
           {/* Title */}
           {(post.event_title || post.type === 'event') && (
-            <h3 className="mt-0.5 text-base font-bold leading-snug text-open-ink">
+            <h3 className="mt-1 text-lg font-black leading-snug text-open-ink">
               {post.event_title || post.content}
             </h3>
           )}
           {post.type !== 'event' && post.content && (
-            <p className="mt-0.5 text-sm font-semibold leading-snug text-open-ink line-clamp-2">
+            <p className="mt-1 text-base font-black leading-snug text-open-ink">
               {post.content}
             </p>
           )}
@@ -328,19 +375,19 @@ function PostCard({ post, myReaction, isOwn, onReact, onDelete }) {
 
           {/* Full-width image with gradient */}
           {post.image_url && (
-            <div className="relative mt-3 overflow-hidden rounded-sm" style={{ maxHeight: 320 }}>
+            <div className="relative mt-4 overflow-hidden rounded-[1.25rem] bg-open-bg" style={{ maxHeight: 360 }}>
               <img
                 src={post.image_url}
                 alt=""
                 className="w-full object-cover"
-                style={{ maxHeight: 320 }}
+                style={{ maxHeight: 360 }}
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
             </div>
           )}
 
         {/* Reactions */}
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-4 flex items-center gap-2">
           <ReactionBtn
             icon={ThumbsUp}
             count={post.likes_count || 0}
@@ -364,6 +411,7 @@ function PostCard({ post, myReaction, isOwn, onReact, onDelete }) {
           />
         </div>
       </div>
+      </div>
     </article>
   )
 }
@@ -374,8 +422,10 @@ function ReactionBtn({ icon: Icon, count, active, activeColor, onClick }) {
       type="button"
       onClick={onClick}
       className={[
-        'flex items-center gap-1.5 text-xs font-semibold transition',
-        active ? activeColor : 'text-open-muted hover:text-open-ink',
+        'flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-black transition',
+        active
+          ? `border-transparent bg-open-bg ${activeColor}`
+          : 'border-open-light bg-open-bg text-open-muted hover:text-open-ink',
       ].join(' ')}
     >
       <Icon
@@ -393,9 +443,9 @@ function MiniTournamentCard({ tournament }) {
   return (
     <a
       href="/tournaments"
-      className="mt-2 flex items-center gap-3 border border-open-light bg-open-bg px-3 py-2.5 transition hover:border-open-primary"
+      className="mt-3 flex items-center gap-3 rounded-[1.25rem] border border-open-light bg-open-bg px-3 py-3 transition hover:border-open-primary"
     >
-      <div className="grid h-8 w-8 shrink-0 place-items-center rounded bg-violet-100 text-sm font-black text-violet-700">
+      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[1rem] bg-violet-100 text-sm font-black text-violet-700">
         {(tournament.title || 'T').charAt(0)}
       </div>
       <div className="min-w-0 flex-1">
@@ -417,11 +467,11 @@ function MiniTournamentCard({ tournament }) {
 
 function SidebarCard({ title, action, children }) {
   return (
-    <div className="border border-open-light bg-open-surface p-4">
+    <div className="rounded-[1.75rem] border border-open-light bg-open-surface p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[10px] font-bold uppercase tracking-[0.18em] text-open-muted">{title}</h2>
         {action && (
-          <a href={action.to} className="text-[11px] font-semibold text-open-primary hover:underline">
+          <a href={action.to} className="text-[11px] font-black text-open-primary hover:underline">
             {action.label} →
           </a>
         )}
@@ -433,7 +483,7 @@ function SidebarCard({ title, action, children }) {
 
 function StatPill({ icon: Icon, label, value }) {
   return (
-    <div className="flex flex-col items-center gap-1 rounded border border-open-light bg-open-bg py-3">
+    <div className="flex flex-col items-center gap-1 rounded-[1.15rem] border border-open-light bg-open-bg py-3">
       <Icon size={15} strokeWidth={1.8} className="text-open-muted" />
       <span className="text-base font-black text-open-ink">{value?.toLocaleString() ?? '—'}</span>
       <span className="text-[10px] text-open-muted">{label}</span>

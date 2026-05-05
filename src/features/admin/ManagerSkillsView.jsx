@@ -1,125 +1,94 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
-import usePlayerProfile from '../profile/usePlayerProfile'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import useManagerClub from '../../hooks/useManagerClub'
 
-const skillCategories = [
+const managerSkillCategories = [
   {
-    id: 'competition',
-    kicker: 'Competencia',
-    title: 'Competencia del club.',
-    detail: 'Crea torneos, revisa partidos recientes y empuja la competencia del club.',
+    id: 'club',
+    kicker: 'Club',
     actions: [
       {
-        label: 'Crear un torneo',
-        detail: 'Base, jugadores y draw',
-        to: '/tournaments',
-        image: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1400&q=80',
-      },
-      {
-        label: 'Crear partido',
-        detail: 'Rivales, cancha y confirmacion',
-        to: '/matches',
+        label: 'Gestionar canchas',
+        detail: 'Fotos, horarios, precios y disponibilidad del club.',
+        to: '/canchas',
         image: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?auto=format&fit=crop&w=1400&q=80',
       },
       {
-        label: 'Ranking del club',
-        detail: 'Ratings y categorias',
-        to: '/ranking',
-        image: 'https://images.unsplash.com/photo-1530915365347-e35b749a0381?auto=format&fit=crop&w=1400&q=80',
-      },
-    ],
-  },
-  {
-    id: 'training',
-    kicker: 'Entrenamiento',
-    title: 'Clases, asistencia y XP.',
-    detail: 'Programa sesiones, revisa cupos y organiza el trabajo semanal.',
-    actions: [
-      {
-        label: 'Nueva clase',
-        detail: 'Grupo, fecha y plan',
-        to: '/entrenamientos',
-        image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=1400&q=80',
-      },
-      {
-        label: 'Pasar asistencia',
-        detail: 'Confirmar alumnos',
-        to: '/entrenamientos',
-        image: 'https://images.unsplash.com/photo-1599058917212-d750089bc07e?auto=format&fit=crop&w=1400&q=80',
-      },
-      {
-        label: 'Plan semanal',
-        detail: 'Sesiones proximas',
-        to: '/entrenamientos',
-        image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1400&q=80',
-      },
-    ],
-  },
-  {
-    id: 'players',
-    kicker: 'Jugadores',
-    title: 'Roster, perfiles y progreso.',
-    detail: 'Alumnos, evaluaciones, categorias y seguimiento en un solo bloque.',
-    actions: [
-      {
-        label: 'Agregar jugador',
-        detail: 'Invitar o vincular perfil',
-        to: '/jugadores',
-        image: 'https://images.unsplash.com/photo-1542144582-1ba00456b5e3?auto=format&fit=crop&w=1400&q=80',
-      },
-      {
-        label: 'Evaluar pendientes',
-        detail: 'Categorias, stats y XP',
-        to: '/evaluaciones',
-        image: 'https://images.unsplash.com/photo-1609710228159-0fa9bd7c0827?auto=format&fit=crop&w=1400&q=80',
-      },
-      {
-        label: 'Ver ranking',
-        detail: 'Progreso y niveles',
-        to: '/ranking',
-        image: 'https://images.unsplash.com/photo-1542327897-d73f4005b533?auto=format&fit=crop&w=1400&q=80',
-      },
-    ],
-  },
-  {
-    id: 'club',
-    kicker: 'Club ops',
-    title: 'Avisos, canchas y operacion.',
-    detail: 'Accesos rapidos a reservas, feed y comunicacion del club.',
-    actions: [
-      {
-        label: 'Reservar cancha',
-        detail: 'Cancha, dia y horario',
-        to: '/canchas',
-        image: 'https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?auto=format&fit=crop&w=1400&q=80',
-      },
-      {
-        label: 'Avisar al club',
-        detail: 'Feed y notificaciones',
+        label: 'Publicar anuncio',
+        detail: 'Comunica avisos, eventos y novedades al feed del club.',
         to: '/feed',
         image: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1400&q=80',
       },
       {
-        label: 'Publicar post',
-        detail: 'Comunicado o logro',
+        label: 'Reporte del club',
+        detail: 'Revisa actividad, ocupacion y señales operativas.',
+        to: '/reporte',
+        image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1400&q=80',
+      },
+    ],
+  },
+  {
+    id: 'memberships',
+    kicker: 'Membresias',
+    actions: [
+      {
+        label: 'Aprobar miembros',
+        detail: 'Valida players, coaches y estatus de membresia.',
+        to: '/membresias',
+        image: 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&w=1400&q=80',
+      },
+      {
+        label: 'Ver jugadores',
+        detail: 'Consulta el roster del club y sus perfiles.',
+        to: '/jugadores',
+        image: 'https://images.unsplash.com/photo-1542144582-1ba00456b5e3?auto=format&fit=crop&w=1400&q=80',
+      },
+      {
+        label: 'Feed social',
+        detail: 'Revisa actividad reciente de la comunidad.',
         to: '/feed',
         image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80',
       },
     ],
   },
+  {
+    id: 'competition',
+    kicker: 'Competencia',
+    actions: [
+      {
+        label: 'Crear torneo',
+        detail: 'Base, jugadores, draw y publicacion.',
+        to: '/tournaments',
+        image: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1400&q=80',
+      },
+      {
+        label: 'Ranking del club',
+        detail: 'Ratings, categorias y top del club.',
+        to: '/ranking',
+        image: 'https://images.unsplash.com/photo-1530915365347-e35b749a0381?auto=format&fit=crop&w=1400&q=80',
+      },
+      {
+        label: 'Partidos',
+        detail: 'Resultados recientes y actividad competitiva.',
+        to: '/matches',
+        image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?auto=format&fit=crop&w=1400&q=80',
+      },
+    ],
+  },
 ]
 
-function CoachSkillsView() {
-  const { profile } = usePlayerProfile()
+function ManagerSkillsView() {
+  const { clubId, isLoading } = useManagerClub()
 
-  if (!profile.clubId) {
+  if (isLoading) {
+    return <p className="text-sm text-open-muted">Cargando club...</p>
+  }
+
+  if (!clubId) {
     return (
-      <p className="rounded-[2rem] border border-open-light bg-open-surface px-4 py-8 text-center text-sm text-open-muted">
-        Necesitas pertenecer a un club para acceder a Skills de coach.
+      <p className="rounded-[1.5rem] border border-open-light bg-open-surface px-4 py-8 text-center text-sm text-open-muted">
+        No se encontro un club asociado a este manager.
       </p>
     )
   }
@@ -127,18 +96,15 @@ function CoachSkillsView() {
   return (
     <section className="grid gap-5">
       <div className="grid gap-4">
-        {skillCategories.map((category) => (
-          <SkillCategory
-            key={category.id}
-            category={category}
-          />
+        {managerSkillCategories.map((category) => (
+          <ManagerSkillCategory key={category.id} category={category} />
         ))}
       </div>
     </section>
   )
 }
 
-function SkillCategory({ category }) {
+function ManagerSkillCategory({ category }) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [touchStart, setTouchStart] = useState(null)
   const activeAction = category.actions[activeIndex]
@@ -227,4 +193,4 @@ function SkillCategory({ category }) {
   )
 }
 
-export default CoachSkillsView
+export default ManagerSkillsView

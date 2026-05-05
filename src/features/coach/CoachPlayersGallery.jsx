@@ -3,13 +3,12 @@ import { Link } from 'react-router-dom'
 import {
   ChevronRight,
   Search,
-  ShieldCheck,
   Trophy,
   UserPlus,
-  Users,
   X,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import ClubPlayersManager from '../admin/ClubPlayersManager'
 import usePlayerProfile from '../profile/usePlayerProfile'
 
 const filterOptions = [
@@ -27,6 +26,7 @@ function CoachPlayersGallery() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     if (!profile.clubId) {
@@ -64,7 +64,7 @@ function CoachPlayersGallery() {
     return () => {
       isMounted = false
     }
-  }, [profile.clubId])
+  }, [profile.clubId, reloadKey])
 
   const stats = useMemo(() => {
     const active = players.filter((player) => player.club_membership_status === 'approved')
@@ -169,7 +169,14 @@ function CoachPlayersGallery() {
         ) : null}
       </div>
 
-      {isAddOpen ? <AddPlayerModal onClose={() => setIsAddOpen(false)} /> : null}
+      {isAddOpen ? (
+        <AddPlayerModal
+          onClose={() => {
+            setIsAddOpen(false)
+            setReloadKey((current) => current + 1)
+          }}
+        />
+      ) : null}
     </section>
   )
 }
@@ -300,8 +307,8 @@ function MiniStat({ label, value }) {
 function AddPlayerModal({ onClose }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-end bg-black/45 p-3 backdrop-blur-sm sm:place-items-center sm:p-6">
-      <section className="grid max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/20 bg-open-surface p-4 shadow-2xl shadow-black/25 sm:rounded-[2.5rem] sm:p-5 lg:p-6">
-        <div className="grid gap-4 lg:grid-cols-[minmax(16rem,0.75fr)_minmax(0,1.25fr)]">
+      <section className="grid max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-[2rem] border border-white/20 bg-open-surface p-4 shadow-2xl shadow-black/25 sm:rounded-[2.5rem] sm:p-5 lg:p-6">
+        <div className="grid gap-4 xl:grid-cols-[minmax(16rem,0.58fr)_minmax(0,1.42fr)]">
           <div className="relative isolate grid min-h-72 content-between overflow-hidden rounded-[2rem] bg-open-ink p-5 text-white sm:p-6">
             <div
               className="absolute inset-0 -z-20 bg-cover bg-center"
@@ -335,60 +342,12 @@ function AddPlayerModal({ onClose }) {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ModalOption
-              icon={UserPlus}
-              title="Agregar jugador nuevo"
-              detail="Crea una ficha interna y despues completa su perfil."
-              to="/profile"
-              primary
-            />
-            <ModalOption
-              icon={ShieldCheck}
-              title="Vincular perfil existente"
-              detail="Conecta una cuenta OPEN existente con el club."
-              to="/profile"
-            />
-            <ModalOption
-              icon={Users}
-              title="Ver todos"
-              detail="Regresa al roster y revisa jugadores activos."
-              to="/jugadores"
-            />
-            <ModalOption
-              icon={Trophy}
-              title="Evaluar jugadores"
-              detail="Asigna categoria, stats y XP desde el sistema de coach."
-              to="/evaluaciones"
-            />
+          <div className="min-w-0">
+            <ClubPlayersManager mode="coach" />
           </div>
         </div>
       </section>
     </div>
-  )
-}
-
-function ModalOption({ icon: Icon, title, detail, to, primary = false }) {
-  return (
-    <Link
-      to={to}
-      className={[
-        'grid min-h-52 content-between rounded-[1.75rem] border p-4 transition',
-        primary
-          ? 'border-open-ink bg-open-ink text-open-surface'
-          : 'border-open-light bg-open-bg text-open-ink hover:border-open-ink',
-      ].join(' ')}
-    >
-      <span className={['grid h-12 w-12 place-items-center rounded-[1rem]', primary ? 'bg-white/10' : 'bg-open-surface'].join(' ')}>
-        <Icon size={22} strokeWidth={2} />
-      </span>
-      <span>
-        <span className="block text-xl font-black leading-6">{title}</span>
-        <span className={['mt-2 block text-sm leading-6', primary ? 'text-white/68' : 'text-open-muted'].join(' ')}>
-          {detail}
-        </span>
-      </span>
-    </Link>
   )
 }
 

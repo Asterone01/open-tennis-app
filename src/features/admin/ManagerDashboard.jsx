@@ -1,82 +1,110 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Settings, Trophy, Users, X } from 'lucide-react'
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { ChevronRight, CreditCard, MapPin, Trophy, Users } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import useManagerClub from '../../hooks/useManagerClub'
-import BrandKitEditor from './BrandKitEditor'
+
+const chartColors = ['#0D0D0F', '#2FA7B8', '#737373', '#D4D4D4']
+const operationColors = ['#0D0D0F', '#2FA7B8', '#A3A3A3']
 
 function ManagerDashboard() {
-  const { clubId, isLoading: isClubLoading } = useManagerClub()
-  const [stats, setStats] = useState(null)
-  const [pendingPlayers, setPendingPlayers] = useState([])
-  const [activeTournaments, setActiveTournaments] = useState([])
-  const [updatingId, setUpdatingId] = useState('')
-  const [message, setMessage] = useState('')
+  const { club, clubId, isLoading: isClubLoading } = useManagerClub()
+  const [players, setPlayers] = useState([])
+  const [courts, setCourts] = useState([])
+  const [reservations, setReservations] = useState([])
+  const [tournaments, setTournaments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-
-  const load = async () => {
-    if (!clubId) return
-    setIsLoading(true)
-
-    const [playersRes, tournamentsRes] = await Promise.all([
-      supabase
-        .from('players')
-        .select('id, full_name, email, club_membership_status, is_coach, xp, level, created_at')
-        .eq('club_id', clubId),
-      supabase
-        .from('tournaments')
-        .select('id, title, status, start_date, category, age_group')
-        .eq('club_id', clubId)
-        .in('status', ['open', 'in_progress'])
-        .order('start_date', { ascending: true }),
-    ])
-
-    const players = playersRes.data || []
-    const approved = players.filter((p) => p.club_membership_status === 'approved' && !p.is_coach)
-    const coaches = players.filter((p) => p.is_coach)
-    const pending = players.filter((p) => p.club_membership_status === 'pending')
-
-    setStats({
-      members: approved.length,
-      coaches: coaches.length,
-      pending: pending.length,
-    })
-    setPendingPlayers(pending)
-    setActiveTournaments(tournamentsRes.data || [])
-    setIsLoading(false)
-  }
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    load()
-  }, [clubId])
+    if (!clubId) return
+    let isMounted = true
 
-  const handleMembership = async (playerId, status) => {
-    setUpdatingId(playerId)
-    setMessage('')
+    const load = async () => {
+      setIsLoading(true)
+      setError('')
+      const today = new Date().toISOString().slice(0, 10)
 
-    const { error } = await supabase
-      .from('players')
-      .update({ club_membership_status: status })
-      .eq('id', playerId)
+      const [playersRes, courtsRes, reservationsRes, tournamentsRes] = await Promise.all([
+        supabase
+          .from('players')
+          .select('id, full_name, email, club_membership_status, membership_payment_status, is_coach, created_at')
+          .eq('club_id', clubId),
+        supabase
+          .from('courts')
+          .select('id, name, status')
+          .eq('club_id', clubId),
+        supabase
+          .from('court_reservations')
+          .select('id, status, payment_status, reservation_date, court_id')
+          .eq('club_id', clubId)
+          .gte('reservation_date', today)
+          .limit(80),
+        supabase
+          .from('tournaments')
+          .select('id, title, status, start_date, category, age_group')
+          .eq('club_id', clubId)
+          .order('start_date', { ascending: true })
+          .limit(8),
+      ])
 
-    if (error) {
-      setMessage(error.message)
-    } else {
-      setPendingPlayers((current) => current.filter((p) => p.id !== playerId))
-      setStats((current) =>
-        current
-          ? {
-              ...current,
-              pending: Math.max(current.pending - 1, 0),
-              members: status === 'approved' ? current.members + 1 : current.members,
-            }
-          : current,
-      )
-      setMessage(status === 'approved' ? 'Jugador aprobado.' : 'Solicitud rechazada.')
+      if (!isMounted) return
+
+      const firstError = playersRes.error || courtsRes.error || reservationsRes.error || tournamentsRes.error
+      if (firstError) setError(firstError.message)
+
+      setPlayers(playersRes.data || [])
+      setCourts(courtsRes.data || [])
+      setReservations(reservationsRes.data || [])
+      setTournaments(tournamentsRes.data || [])
+      setIsLoading(false)
     }
 
-    setUpdatingId('')
-  }
+    load()
+    return () => { isMounted = false }
+  }, [clubId])
+
+  const approvedPlayers = useMemo(
+    () => players.filter((player) => player.club_membership_status === 'approved' && !player.is_coach),
+    [players],
+  )
+  const coaches = useMemo(
+    () => players.filter((player) => player.is_coach && player.club_membership_status === 'approved'),
+    [players],
+  )
+  const pendingMembers = useMemo(
+    () => players.filter((player) => player.club_membership_status === 'pending'),
+    [players],
+  )
+  const activeCourts = courts.filter((court) => court.status === 'active')
+  const activeTournaments = tournaments.filter((tournament) => ['open', 'in_progress'].includes(tournament.status))
+  const confirmedReservations = reservations.filter((reservation) => reservation.status === 'confirmed')
+  const pendingPayments = players.filter((player) =>
+    ['pending', 'overdue'].includes(player.membership_payment_status),
+  )
+
+  const memberData = useMemo(
+    () => [
+      { label: 'Jugadores', value: approvedPlayers.length },
+      { label: 'Coaches', value: coaches.length },
+      { label: 'Pendientes', value: pendingMembers.length },
+    ].filter((item) => item.value > 0),
+    [approvedPlayers.length, coaches.length, pendingMembers.length],
+  )
+
+  const operationData = useMemo(
+    () => [
+      { label: 'Canchas', value: activeCourts.length },
+      { label: 'Reservas', value: confirmedReservations.length },
+      { label: 'Torneos', value: activeTournaments.length },
+    ].filter((item) => item.value > 0),
+    [activeCourts.length, activeTournaments.length, confirmedReservations.length],
+  )
+
+  const approvalCoverage = players.length > 0
+    ? Math.round(((players.length - pendingMembers.length) / players.length) * 100)
+    : 0
 
   if (isClubLoading) {
     return <p className="text-sm text-open-muted">Cargando club...</p>
@@ -84,214 +112,311 @@ function ManagerDashboard() {
 
   if (!clubId) {
     return (
-      <p className="border border-open-light bg-open-surface px-4 py-8 text-center text-sm text-open-muted">
-        No se encontró un club asociado a este manager.
+      <p className="rounded-[2rem] border border-open-light bg-open-surface px-4 py-8 text-center text-sm text-open-muted">
+        No se encontro un club asociado a este manager.
       </p>
     )
   }
 
   return (
-    <section className="grid gap-6">
-      <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-open-muted">
-            Manager Hub
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold text-open-ink md:text-5xl">
-            Control del Club
-          </h1>
-        </div>
-        <p className="max-w-md text-sm leading-6 text-open-muted">
-          Estado del club, solicitudes de ingreso y torneos activos.
-        </p>
-      </div>
+    <section className="grid gap-5">
+      <DashboardHero
+        clubName={club?.name || 'Club OPEN'}
+        isLoading={isLoading}
+        membersCount={approvedPlayers.length}
+        coachesCount={coaches.length}
+        courtsCount={activeCourts.length}
+        pendingCount={pendingMembers.length}
+      />
 
-      {message ? (
-        <p className="border border-open-light bg-open-surface px-4 py-3 text-sm font-semibold text-open-ink">
-          {message}
+      {error ? (
+        <p className="rounded-[1.5rem] border border-open-light bg-open-surface p-4 text-sm text-open-muted">
+          {error}
         </p>
       ) : null}
 
-      {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <KpiCard label="Miembros activos" value={isLoading ? '—' : stats?.members ?? 0} icon={Users} />
-        <KpiCard label="Coaches" value={isLoading ? '—' : stats?.coaches ?? 0} icon={Settings} />
-        <KpiCard
-          label="Solicitudes pendientes"
-          value={isLoading ? '—' : stats?.pending ?? 0}
-          icon={Users}
-          highlight={stats?.pending > 0}
+      <div className="grid gap-4 xl:grid-cols-3">
+        <ActionBanner
+          kicker="Membresias"
+          title={`${pendingMembers.length} pendientes`}
+          detail={
+            pendingMembers.length === 0
+              ? 'No hay solicitudes esperando aprobacion.'
+              : 'Aprueba jugadores y coaches para activar su acceso.'
+          }
+          to="/membresias"
+          image="https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&w=1200&q=80"
+          icon={CreditCard}
+        />
+        <ActionBanner
+          kicker="Canchas"
+          title={`${activeCourts.length} activas`}
+          detail={
+            reservations[0]
+              ? `${confirmedReservations.length} reservas proximas confirmadas.`
+              : 'Configura disponibilidad, fotos y precios del club.'
+          }
+          to="/canchas"
+          image="https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?auto=format&fit=crop&w=1200&q=80"
+          icon={MapPin}
+        />
+        <ActionBanner
+          kicker="Competencia"
+          title={`${activeTournaments.length} torneos`}
+          detail={
+            activeTournaments[0]
+              ? `Activo: ${activeTournaments[0].title}`
+              : 'Crea torneos y revisa ranking del club.'
+          }
+          to="/tournaments"
+          image="https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=1200&q=80"
+          icon={Trophy}
         />
       </div>
 
-      {/* Solicitudes de ingreso */}
-      <article className="border border-open-light bg-open-surface p-5">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-open-muted">
-            Solicitudes de ingreso
-          </h2>
-          {stats?.pending > 0 && (
-            <span className="grid h-6 min-w-6 place-items-center bg-open-primary px-1 text-[10px] font-semibold text-white">
-              {stats.pending}
-            </span>
+      <div className="grid gap-4 xl:grid-cols-3">
+        <ChartPanel title="Miembros" subtitle="Composicion del club" footer={<CategoryLegend data={memberData} />}>
+          {memberData.length > 0 ? (
+            <DonutChart data={memberData} colors={chartColors} centerLabel={`${players.length}`} centerDetail="perfiles" />
+          ) : (
+            <EmptyPanel text="Aun no hay miembros vinculados." />
           )}
-        </div>
+        </ChartPanel>
 
-        {pendingPlayers.length === 0 ? (
-          <p className="mt-4 text-sm text-open-muted">
-            No hay solicitudes pendientes.
+        <ChartPanel title="Operacion" subtitle="Canchas y actividad" footer={<CategoryLegend data={operationData} colors={operationColors} />}>
+          {operationData.length > 0 ? (
+            <DonutChart data={operationData} colors={operationColors} centerLabel={`${activeCourts.length}`} centerDetail="canchas" />
+          ) : (
+            <EmptyPanel text="Configura canchas para iniciar operacion." />
+          )}
+        </ChartPanel>
+
+        <ChartPanel title="Accesos" subtitle="Aprobacion y pagos">
+          <GaugeChart value={approvalCoverage} />
+          <p className="rounded-[1.25rem] bg-open-bg p-4 text-sm leading-6 text-open-muted">
+            {pendingMembers.length === 0
+              ? 'Todos los perfiles vinculados estan revisados.'
+              : `${pendingMembers.length} solicitudes requieren aprobacion.`}
+            {pendingPayments.length > 0 ? ` ${pendingPayments.length} membresias tienen pago pendiente.` : ''}
           </p>
-        ) : (
-          <div className="mt-4 grid gap-2">
-            {pendingPlayers.map((player) => (
-              <div
-                key={player.id}
-                className="flex flex-wrap items-center justify-between gap-3 border border-open-light bg-open-bg px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-open-ink">
-                    {player.full_name || player.email}
-                  </p>
-                  <p className="mt-0.5 text-xs text-open-muted">
-                    {player.email}
-                    {player.created_at
-                      ? ` · Solicito ${new Date(player.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}`
-                      : ''}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={!!updatingId}
-                    onClick={() => handleMembership(player.id, 'approved')}
-                    className="inline-flex h-9 items-center gap-1.5 bg-open-ink px-3 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Check size={13} strokeWidth={2} />
-                    Aprobar
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!!updatingId}
-                    onClick={() => handleMembership(player.id, 'rejected')}
-                    className="inline-flex h-9 items-center gap-1.5 border border-open-light bg-open-surface px-3 text-xs font-semibold text-open-ink transition hover:border-open-primary disabled:opacity-50"
-                  >
-                    <X size={13} strokeWidth={2} />
-                    Rechazar
-                  </button>
-                  <Link
-                    to={`/players/${player.id}`}
-                    className="inline-flex h-9 items-center border border-open-light bg-open-surface px-3 text-xs font-semibold text-open-ink transition hover:border-open-primary"
-                  >
-                    Ver perfil
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </article>
-
-      {/* Torneos activos */}
-      <article className="border border-open-light bg-open-surface p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Trophy size={18} strokeWidth={1.8} />
-            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-open-muted">
-              Torneos activos
-            </h2>
-          </div>
-          <Link
-            to="/tournaments"
-            className="text-xs font-semibold text-open-primary transition hover:opacity-70"
-          >
-            Gestionar
-          </Link>
-        </div>
-
-        {activeTournaments.length === 0 ? (
-          <div className="mt-4 flex items-center justify-between gap-4 border border-open-light bg-open-bg px-4 py-3">
-            <p className="text-sm text-open-muted">Sin torneos activos.</p>
-            <Link
-              to="/tournaments"
-              className="text-xs font-semibold text-open-primary transition hover:opacity-70"
-            >
-              Crear torneo
-            </Link>
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-2">
-            {activeTournaments.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center justify-between gap-3 border border-open-light bg-open-bg px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-open-ink">{t.title}</p>
-                  <p className="mt-0.5 text-xs text-open-muted">
-                    {t.category ? `Cat. ${t.category}` : ''}
-                    {t.age_group ? ` · ${t.age_group}` : ''}
-                    {t.start_date ? ` · ${t.start_date}` : ''}
-                  </p>
-                </div>
-                <span
-                  className={[
-                    'border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em]',
-                    t.status === 'in_progress'
-                      ? 'border-open-ink text-open-ink'
-                      : 'border-open-light text-open-muted',
-                  ].join(' ')}
-                >
-                  {t.status === 'in_progress' ? 'En curso' : 'Inscripciones'}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </article>
-
-      {/* Acceso membresías */}
-      <Link
-        to="/memberships"
-        className="flex items-center justify-between gap-4 border border-open-light bg-open-surface px-5 py-4 transition hover:border-open-primary"
-      >
-        <div>
-          <p className="text-sm font-semibold text-open-ink">Gestionar membresías</p>
-          <p className="mt-0.5 text-xs text-open-muted">
-            Pagos, planes, fechas de vencimiento y notas por jugador.
-          </p>
-        </div>
-        <span className="shrink-0 text-xs font-semibold text-open-primary">Ver todo →</span>
-      </Link>
-
-      {/* Brand Kit */}
-      <article className="border border-open-light bg-open-surface p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-open-muted">
-          Identidad del club
-        </h2>
-        <div className="mt-4">
-          <BrandKitEditor />
-        </div>
-      </article>
+        </ChartPanel>
+      </div>
     </section>
   )
 }
 
-function KpiCard({ label, value, icon: Icon, highlight = false }) {
+function DashboardHero({ clubName, isLoading, membersCount, coachesCount, courtsCount, pendingCount }) {
+  const metrics = [
+    { label: 'Miembros', value: isLoading ? '...' : membersCount, icon: Users },
+    { label: 'Coaches', value: isLoading ? '...' : coachesCount, icon: Users },
+    { label: 'Canchas', value: isLoading ? '...' : courtsCount, icon: MapPin },
+    { label: 'Pendientes', value: isLoading ? '...' : pendingCount, icon: CreditCard },
+  ]
+
   return (
-    <article
-      className={[
-        'border p-5',
-        highlight ? 'border-open-primary bg-open-surface' : 'border-open-light bg-open-surface',
-      ].join(' ')}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-sm font-semibold text-open-muted">{label}</p>
-        <div className="grid h-9 w-9 place-items-center border border-open-light bg-open-bg">
-          <Icon size={16} strokeWidth={1.8} />
+    <header className="relative isolate overflow-hidden rounded-[2rem] border border-open-light bg-open-ink p-5 text-white sm:rounded-[2.5rem] sm:p-7 lg:p-10">
+      <div
+        className="absolute inset-0 -z-20 bg-cover bg-center"
+        style={{
+          backgroundImage:
+            "url('https://images.unsplash.com/photo-1599474924187-334a4ae5bd3c?auto=format&fit=crop&w=1400&q=80')",
+        }}
+      />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/84 to-black/34" />
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(24rem,0.55fr)] xl:items-end">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-200/90">
+            Manager dashboard
+          </p>
+          <h1 className="mt-6 max-w-[12ch] text-4xl font-black leading-[0.95] sm:text-5xl lg:text-7xl">
+            {clubName}
+          </h1>
+          <p className="mt-5 max-w-2xl text-sm font-semibold leading-6 text-white/72">
+            Lectura rapida del club: membresias, canchas, reservas,
+            competencia y pendientes de operacion.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {metrics.map((metric) => (
+            <HeroMetric key={metric.label} metric={metric} />
+          ))}
         </div>
       </div>
-      <p className="mt-4 text-4xl font-semibold text-open-ink">{value}</p>
-    </article>
+    </header>
+  )
+}
+
+function HeroMetric({ metric }) {
+  const Icon = metric.icon
+
+  return (
+    <div className="grid min-h-24 content-between rounded-[1.25rem] border border-white/10 bg-white/10 p-3 backdrop-blur-sm">
+      <Icon size={18} strokeWidth={2} className="text-white/70" />
+      <span>
+        <span className="block text-2xl font-black text-white">{metric.value}</span>
+        <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-white/48">
+          {metric.label}
+        </span>
+      </span>
+    </div>
+  )
+}
+
+function ActionBanner({ kicker, title, detail, to, image, icon: Icon }) {
+  return (
+    <Link
+      to={to}
+      className="group relative isolate grid min-h-56 overflow-hidden rounded-[2rem] border border-open-light p-5 text-white shadow-xl shadow-black/5 transition hover:-translate-y-0.5 hover:border-open-ink hover:shadow-2xl hover:shadow-black/10 sm:rounded-[2.35rem]"
+    >
+      <div
+        className="absolute inset-0 -z-20 bg-cover bg-center transition duration-500 group-hover:scale-105"
+        style={{ backgroundImage: `url('${image}')` }}
+      />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-black via-black/78 to-black/24" />
+      <div className="grid h-full content-between gap-8">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-200/90">
+              {kicker}
+            </p>
+            <h2 className="mt-5 max-w-[10ch] text-4xl font-black leading-[0.92]">
+              {title}
+            </h2>
+          </div>
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-open-ink transition group-hover:scale-105">
+            <Icon size={20} strokeWidth={2.2} />
+          </span>
+        </div>
+
+        <div className="flex items-end justify-between gap-4">
+          <p className="max-w-xs text-sm font-semibold leading-6 text-white/72">
+            {detail}
+          </p>
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30 bg-white/10 text-white backdrop-blur-sm transition group-hover:bg-white group-hover:text-open-ink">
+            <ChevronRight size={19} strokeWidth={2.3} />
+          </span>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+function ChartPanel({ title, subtitle, children, footer }) {
+  return (
+    <section className="grid gap-4 rounded-[2rem] border border-open-light bg-open-surface p-4 sm:p-5">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-open-muted">
+          {subtitle}
+        </p>
+        <h2 className="mt-1 text-2xl font-black text-open-ink">{title}</h2>
+      </div>
+      {children}
+      {footer}
+    </section>
+  )
+}
+
+function DonutChart({ data, colors, centerLabel, centerDetail }) {
+  return (
+    <div className="relative min-h-[17rem]">
+      <ResponsiveContainer width="100%" height={270}>
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="label"
+            innerRadius={66}
+            outerRadius={104}
+            paddingAngle={5}
+            cornerRadius={14}
+            stroke="transparent"
+          >
+            {data.map((entry, index) => (
+              <Cell key={entry.label} fill={colors[index % colors.length]} />
+            ))}
+          </Pie>
+          <Tooltip
+            contentStyle={{
+              border: '1px solid rgba(13,13,15,0.12)',
+              borderRadius: 16,
+            }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="pointer-events-none absolute inset-0 grid place-items-center">
+        <div className="text-center">
+          <p className="text-4xl font-black text-open-ink">{centerLabel}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-open-muted">{centerDetail}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GaugeChart({ value }) {
+  const data = [
+    { label: 'Completado', value },
+    { label: 'Pendiente', value: Math.max(100 - value, 0) },
+  ]
+
+  return (
+    <div className="grid place-items-center rounded-[1.5rem] bg-open-bg p-4">
+      <div className="relative h-48 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey="value"
+              startAngle={180}
+              endAngle={0}
+              innerRadius={72}
+              outerRadius={104}
+              paddingAngle={3}
+              cornerRadius={12}
+              stroke="transparent"
+            >
+              <Cell fill="#2FA7B8" />
+              <Cell fill="#D4D4D4" />
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="absolute inset-x-0 bottom-2 text-center">
+          <p className="text-4xl font-black text-open-ink">{value}%</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-open-muted">
+            revisado
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CategoryLegend({ data, colors = chartColors }) {
+  if (!data.length) return null
+
+  return (
+    <div className="grid gap-2">
+      {data.map((item, index) => (
+        <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
+          <span className="flex items-center gap-2 font-semibold text-open-muted">
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: colors[index % colors.length] }}
+            />
+            {item.label}
+          </span>
+          <span className="font-black text-open-ink">{item.value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function EmptyPanel({ text }) {
+  return (
+    <div className="grid min-h-[17rem] place-items-center rounded-[1.5rem] bg-open-bg p-6 text-center text-sm font-semibold text-open-muted">
+      {text}
+    </div>
   )
 }
 

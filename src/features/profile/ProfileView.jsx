@@ -305,6 +305,29 @@ function ProfileView() {
     }))
   }
 
+  if (profile.role === 'manager') {
+    return (
+      <ManagerProfileView
+        avatarInputRef={avatarInputRef}
+        club={club}
+        colorMessage={colorMessage}
+        error={error}
+        isLoading={isLoading}
+        isSavingColor={isSavingColor}
+        isUploadingAvatar={isUploadingAvatar}
+        player={player}
+        profile={profile}
+        profileWithClub={profileWithClub}
+        resolvedCardColor={resolvedCardColor}
+        onAvatarFile={handleAvatarFile}
+        onAvatarClick={() => avatarInputRef.current?.click()}
+        onColorChange={setCardColor}
+        onResetColor={handleResetCardColor}
+        onSaveColor={handleSaveCardColor}
+      />
+    )
+  }
+
   return (
     <section className="mx-auto grid w-full max-w-6xl gap-6">
       <JoinClubModal
@@ -461,6 +484,136 @@ function ProfileSection({ id, title, detail, icon: Icon, open, onToggle, childre
         />
       </button>
       {open ? <div className="grid gap-4 p-4 sm:p-5">{children}</div> : null}
+    </section>
+  )
+}
+
+function ManagerProfileView({
+  avatarInputRef,
+  club,
+  colorMessage,
+  error,
+  isLoading,
+  isSavingColor,
+  isUploadingAvatar,
+  player,
+  profile,
+  profileWithClub,
+  resolvedCardColor,
+  onAvatarFile,
+  onAvatarClick,
+  onColorChange,
+  onResetColor,
+  onSaveColor,
+}) {
+  return (
+    <section className="mx-auto grid w-full max-w-6xl gap-6">
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onAvatarFile}
+      />
+
+      <ManagerHero profile={profileWithClub} club={club} />
+
+      {error ? (
+        <p className="rounded-[1.35rem] border border-open-light bg-open-surface px-4 py-3 text-sm text-open-muted">
+          {error}
+        </p>
+      ) : null}
+
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="grid gap-4">
+          <PlayerCard
+            profile={profileWithClub}
+            canEditAvatar
+            isAvatarUploading={isUploadingAvatar}
+            onAvatarClick={onAvatarClick}
+          />
+          {isLoading ? <p className="text-sm text-open-muted">Cargando perfil...</p> : null}
+          {profile.clubId ? <MembershipCard club={club} profile={profileWithClub} /> : null}
+        </div>
+
+        <div className="grid gap-4">
+          <ManagerIdentityPanel profile={profileWithClub} club={club} />
+          <CardColorEditor
+            resolvedCardColor={resolvedCardColor}
+            colorMessage={colorMessage}
+            isSavingColor={isSavingColor}
+            playerId={player?.id}
+            onColorChange={onColorChange}
+            onReset={onResetColor}
+            onSave={onSaveColor}
+          />
+        </div>
+      </section>
+
+    </section>
+  )
+}
+
+function ManagerHero({ profile, club }) {
+  const fullName = profile?.fullName || 'Manager OPEN'
+  const clubName = club?.name || profile?.clubName || 'Club sin configurar'
+  const heroImage = profile?.avatarUrl || club?.logo_url || 'https://images.unsplash.com/photo-1526232761682-d26e03ac148e?auto=format&fit=crop&w=1600&q=80'
+
+  return (
+    <header className="relative isolate overflow-hidden rounded-[2rem] border border-open-light bg-open-ink p-5 text-white sm:rounded-[2.5rem] sm:p-7 lg:min-h-[22rem] lg:p-10">
+      <div
+        className="absolute inset-0 -z-20 bg-cover bg-center"
+        style={{ backgroundImage: `url(${heroImage})` }}
+      />
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(90deg,rgba(0,0,0,0.92),rgba(0,0,0,0.66),rgba(0,0,0,0.22))]" />
+
+      <div className="grid min-h-full gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.42fr)] lg:items-end">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-blue-200/90">
+            Perfil - Manager
+          </p>
+          <h1 className="mt-6 max-w-[12ch] text-5xl font-black leading-[0.94] sm:text-6xl lg:text-7xl">
+            {fullName}
+          </h1>
+          <p className="mt-5 max-w-2xl text-sm font-semibold leading-6 text-white/72">
+            Centro de control personal para administrar club, membresias,
+            competencia y operacion.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <ProfileHeroMetric icon={ShieldCheck} label="Rol" value="Admin" />
+          <ProfileHeroMetric icon={Users} label="Club" value={clubName} />
+          <ProfileHeroMetric icon={Trophy} label="Plan" value={formatMembershipPlan(profile?.membershipPlan)} />
+          <ProfileHeroMetric icon={UserRound} label="Pago" value={formatPaymentStatus(profile?.membershipPaymentStatus)} />
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function ManagerIdentityPanel({ profile, club }) {
+  return (
+    <section className="grid gap-3 rounded-[1.75rem] border border-open-light bg-open-surface p-4">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-open-muted">
+          Estado del manager
+        </p>
+        <h2 className="mt-2 text-2xl font-black text-open-ink">
+          {club?.name || profile.clubName || 'Club pendiente'}
+        </h2>
+        <p className="mt-2 text-sm font-semibold leading-6 text-open-muted">
+          Tu perfil opera como administrador del club. Las acciones pesadas viven
+          en Skills; aqui se mantiene identidad, membresia y configuracion personal.
+        </p>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <MembershipInfoCard label="Rol" value="Admin" compact />
+        <MembershipInfoCard label="Membresia" value={formatClubStatus(profile.clubMembershipStatus)} compact />
+        <MembershipInfoCard label="ID" value={profile.membershipId || 'Admin'} compact />
+        <MembershipInfoCard label="Desde" value={formatProfileDate(profile.membershipSince)} compact />
+      </div>
     </section>
   )
 }
